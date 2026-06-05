@@ -200,6 +200,40 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 .solo-claim{display:flex;align-items:center;gap:.5rem;background:#F5EFF9;border:1.5px solid #D4B8E0;border-radius:10px;padding:.5rem .75rem;cursor:pointer;font-size:.82rem;color:#5C2A70;margin-top:.35rem;font-weight:600;}
 .solo-claim input{accent-color:#5C2A70;width:15px;height:15px;cursor:pointer;}
 
+/* ── DECLINE / HELP / POINT ADJUSTMENT STYLES ── */
+.btn-warn{background:#FFF8E0;border:1.5px solid #FFEAA0;color:#7A5500;}
+.btn-warn:hover{background:#FFF0B0;border-color:#E8C800;}
+.help-banner{background:#FFF8E0;border:1.5px solid #FFEAA0;border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:.85rem;}
+.help-banner-icon{font-size:1.5rem;flex-shrink:0;}
+.help-banner-body{flex:1;}
+.help-banner-title{font-weight:700;color:#7A5500;font-size:.95rem;margin-bottom:.5rem;}
+.help-item{display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid rgba(240,192,64,.2);}
+.help-item:last-child{border-bottom:none;}
+.help-item-info{flex:1;font-size:.85rem;color:var(--text);}
+.help-item-who{font-weight:700;}
+.help-item-task{color:var(--muted);font-size:.78rem;}
+.adj-row{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:.85rem 1.2rem;display:flex;align-items:center;gap:.85rem;flex-wrap:wrap;}
+.adj-row.bonus{border-color:#A0D9BB;background:#EAF8F0;}
+.adj-row.deduct{border-color:#F4A7B9;background:#FFF5F7;}
+.adj-icon{font-size:1.1rem;flex-shrink:0;}
+.adj-info{flex:1;min-width:0;}
+.adj-title{font-weight:700;font-size:.88rem;color:var(--text);}
+.adj-reason{color:var(--muted);font-size:.76rem;margin-top:.1rem;}
+.adj-pts{font-weight:700;font-size:.88rem;}
+.adj-pts.plus{color:#1A6B44;}
+.adj-pts.minus{color:#C0294A;}
+.adj-date{color:var(--faint);font-size:.74rem;}
+.rejection-note{background:#FFF0F2;border:1px solid #F4A7B9;border-radius:8px;padding:.4rem .7rem;font-size:.76rem;color:#C0294A;margin-top:.3rem;}
+
+/* point adjustment modal */
+#adj-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
+#adj-modal.show{display:flex!important;}
+
+/* decline modal */
+#decline-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
+#decline-modal.show{display:flex!important;}
+
+
 /* ── MOBILE IMPROVEMENTS ── */
 @media(max-width:600px){
   .header{padding:.7rem 1rem;}
@@ -350,6 +384,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <div class="task-grid">
         <div>
           <h2 class="section-title">Tasks — <span id="tasks-campus-label" style="color:var(--campus)"></span></h2>
+          <div id="help-banner" class="help-banner hidden">
+            <div class="help-banner-icon">🆘</div>
+            <div class="help-banner-body">
+              <div class="help-banner-title">Help Requested</div>
+              <div id="help-items"></div>
+            </div>
+          </div>
           <div class="task-list" id="admin-task-list"></div>
           <p class="muted hidden" id="no-tasks-admin" style="font-size:.88rem;margin-top:.75rem">No tasks yet for this campus.</p>
         </div>
@@ -578,6 +619,37 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
   </div>
 </div>
 
+<!-- POINT ADJUSTMENT MODAL (admin awards/deducts points) -->
+<div id="adj-modal" style="display:none">
+  <div class="edit-box">
+    <h3 id="adj-modal-title">Award Bonus Points</h3>
+    <div class="form-grid">
+      <div class="field"><label>Worker</label><select class="input" id="adj-worker"></select></div>
+      <div class="field"><label>Points</label><input class="input" id="adj-pts" type="number" min="1" max="500" value="10"/></div>
+      <div class="field"><label>Reason / Description *</label><textarea class="input" id="adj-reason" placeholder="Describe why…" style="min-height:80px"></textarea></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeAdjModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" id="adj-submit-btn" onclick="submitAdj()">Award Points</button>
+    </div>
+  </div>
+</div>
+
+<!-- DECLINE MODAL (worker declines a specific task) -->
+<div id="decline-modal" style="display:none">
+  <div class="edit-box">
+    <h3 style="color:#C0294A">Decline Task</h3>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:1rem" id="decline-warning"></p>
+    <div class="form-grid">
+      <div class="field"><label>Reason for declining *</label><textarea class="input" id="decline-reason" placeholder="Please explain why you are unable to complete this task…" style="min-height:90px"></textarea></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeDeclineModal()">Cancel</button>
+      <button class="btn btn-danger" style="flex:1" onclick="submitDecline()">Decline &amp; Lose Points</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="confetti-canvas"></canvas>
 <div id="celebration" style="display:none" onclick="closeCelebration()">
   <div class="celeb-box" onclick="event.stopPropagation()">
@@ -709,11 +781,12 @@ function ordinal(n) {
 // ══════════════════════════════════════
 // STATE
 // ══════════════════════════════════════
-let workers=[], tasks=[], completions=[], messages=[];
+let workers=[], tasks=[], completions=[], messages=[], helpRequests=[], pointAdjustments=[];
 let currentWorker=null, activeCampus=null;
 let taskType='everyone', selectedColor='#F4A7B9';
 let editingTaskId=null, editingMsgId=null;
 let currentMotd=null;
+let decliningTask=null, adjMode=null, adjWorker=null;
 
 const AVATAR_COLORS=['#F4A7B9','#E8526E','#C8E6DA','#5CBF94','#A8D8EA','#6AB8D4','#D4B8E0','#9B6DB5','#FFEAA0','#E8A87C'];
 
@@ -739,40 +812,37 @@ function showView(id){VIEWS.forEach(v=>$(v).classList.toggle('hidden',v!==id));}
 async function loadData() {
   setSyncing(true);
   try {
-    // Ensure all tables exist (safe to run every time — IF NOT EXISTS)
     await tursoBatch([
-      { sql:`CREATE TABLE IF NOT EXISTS daily_messages (
-          id TEXT PRIMARY KEY,
-          campus TEXT NOT NULL DEFAULT 'SLO',
-          show_date TEXT NOT NULL,
-          title TEXT,
-          body TEXT NOT NULL,
-          icon TEXT NOT NULL DEFAULT '📢',
-          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-          UNIQUE(campus, show_date)
-        )` },
+      { sql:`CREATE TABLE IF NOT EXISTS daily_messages (id TEXT PRIMARY KEY, campus TEXT NOT NULL DEFAULT 'SLO', show_date TEXT NOT NULL, title TEXT, body TEXT NOT NULL, icon TEXT NOT NULL DEFAULT '📢', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), UNIQUE(campus, show_date))` },
       { sql:`CREATE INDEX IF NOT EXISTS idx_messages_campus_date ON daily_messages(campus, show_date)` },
       { sql:`CREATE TABLE IF NOT EXISTS workers (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar_color TEXT NOT NULL DEFAULT '#F4A7B9', points INTEGER NOT NULL DEFAULT 0, campus TEXT NOT NULL DEFAULT 'SLO', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
       { sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, points_value INTEGER NOT NULL DEFAULT 10, deadline TEXT, priority TEXT NOT NULL DEFAULT 'medium', task_type TEXT NOT NULL DEFAULT 'everyone', assign_to TEXT, campus TEXT NOT NULL DEFAULT 'SLO', collab_required INTEGER NOT NULL DEFAULT 2, recurrence TEXT NOT NULL DEFAULT 'none', recurrence_interval INTEGER, recurrence_day INTEGER, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
       { sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), semester TEXT NOT NULL DEFAULT 'current', occurrence_key TEXT NOT NULL DEFAULT 'once', solo_claimed INTEGER NOT NULL DEFAULT 0, UNIQUE(task_id, worker_id, occurrence_key))` },
       { sql:`CREATE TABLE IF NOT EXISTS semester_resets (id TEXT PRIMARY KEY, reset_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), semester_label TEXT NOT NULL)` },
+      { sql:`CREATE TABLE IF NOT EXISTS help_requests (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, campus TEXT NOT NULL DEFAULT 'SLO', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), resolved TEXT NOT NULL DEFAULT '0', resolved_at TEXT)` },
+      { sql:`CREATE TABLE IF NOT EXISTS point_adjustments (id TEXT PRIMARY KEY, worker_id TEXT NOT NULL, campus TEXT NOT NULL DEFAULT 'SLO', type TEXT NOT NULL DEFAULT 'bonus', points INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
+      { sql:`CREATE TABLE IF NOT EXISTS task_rejections (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, reason TEXT NOT NULL, points_deducted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
     ]);
 
-    const [w,t,c,m] = await Promise.all([
+    const [w,t,c,m,h,p] = await Promise.all([
       tursoFetch('SELECT * FROM workers ORDER BY points DESC'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM completions'),
       tursoFetch('SELECT * FROM daily_messages ORDER BY show_date DESC'),
+      tursoFetch('SELECT * FROM help_requests ORDER BY created_at DESC'),
+      tursoFetch('SELECT * FROM point_adjustments ORDER BY created_at DESC'),
     ]);
-    workers     = w.map(r=>({...r, points:Number(r.points)||0}));
-    tasks       = t.map(r=>({...r,
+    workers          = w.map(r=>({...r, points:Number(r.points)||0}));
+    tasks            = t.map(r=>({...r,
       points_value:Number(r.points_value)||10,
       collab_required:Number(r.collab_required)||2,
       recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,
       recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,
     }));
-    completions = c.map(r=>({...r, solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1}));
-    messages    = m;
+    completions      = c.map(r=>({...r, solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1}));
+    messages         = m;
+    helpRequests     = h;
+    pointAdjustments = p.map(r=>({...r, points:Number(r.points)||0}));
     renderAll();
   } catch(e) {
     console.error(e);
@@ -859,6 +929,11 @@ function renderWorkerList() {
     const del=document.createElement('button');del.className='btn btn-danger btn-sm';del.textContent='✕ Remove';
     del.onclick=()=>deleteWorker(w.id,w.name);
     card.appendChild(del);
+    // bonus / deduct buttons
+    const bonus=document.createElement('button');bonus.className='btn btn-success btn-sm';bonus.textContent='＋ Bonus';
+    bonus.onclick=()=>openAdjModal('bonus',w);card.appendChild(bonus);
+    const deduct=document.createElement('button');deduct.className='btn btn-danger btn-sm';deduct.textContent='－ Deduct';
+    deduct.onclick=()=>openAdjModal('deduct',w);card.appendChild(deduct);
     list.appendChild(card);
   });
 }
@@ -972,6 +1047,24 @@ function buildTaskRow(task, isAdmin) {
       // complete button
       const btn=document.createElement('button');btn.className='btn btn-success btn-sm';btn.textContent='✓ Complete';
       btn.onclick=()=>completeTask(task,false);actions.appendChild(btn);
+      // specific task: decline + help buttons
+      if(task.task_type==='specific'&&task.assign_to===currentWorker?.id){
+        // check if already requested help
+        const alreadyHelp=helpRequests.some(h=>h.task_id===task.id&&h.worker_id===currentWorker?.id&&h.resolved==='0');
+        if(!alreadyHelp){
+          const helpBtn=document.createElement('button');helpBtn.className='btn btn-warn btn-sm';helpBtn.textContent='🆘 Need Help';
+          helpBtn.onclick=()=>requestHelp(task);actions.appendChild(helpBtn);
+        } else {
+          const helpNote=document.createElement('span');helpNote.style.cssText='font-size:.76rem;color:#7A5500;font-weight:600';
+          helpNote.textContent='🆘 Help requested';actions.appendChild(helpNote);
+        }
+        // decline — only if worker has enough points
+        const canDecline=currentWorker.points>=(task.points_value*2);
+        if(canDecline){
+          const decBtn=document.createElement('button');decBtn.className='btn btn-danger btn-sm';decBtn.textContent='✕ Decline';
+          decBtn.onclick=()=>openDeclineModal(task);actions.appendChild(decBtn);
+        }
+      }
       // collaborative: also show solo checkbox
       if(task.task_type==='collaborative'){
         const soloWrap=document.createElement('label');soloWrap.className='solo-claim';
@@ -997,6 +1090,23 @@ function renderAdminTasks() {
   const ct=campusTasks();
   $('no-tasks-admin').classList.toggle('hidden',ct.length>0);
   ct.forEach(t=>list.appendChild(buildTaskRow(t,true)));
+  // help request banner
+  const pending=helpRequests.filter(h=>h.campus===activeCampus&&h.resolved==='0');
+  const banner=$('help-banner');
+  const itemsEl=$('help-items');
+  if(!banner||!itemsEl)return;
+  banner.classList.toggle('hidden',pending.length===0);
+  itemsEl.innerHTML='';
+  pending.forEach(h=>{
+    const worker=workers.find(w=>w.id===h.worker_id);
+    const task=tasks.find(t=>t.id===h.task_id);
+    const item=document.createElement('div');item.className='help-item';
+    item.innerHTML=`<div class="help-item-info"><div class="help-item-who">${worker?.name||'?'}</div><div class="help-item-task">needs help with: ${task?.title||'?'}</div></div>`;
+    const resolveBtn=document.createElement('button');resolveBtn.className='btn btn-success btn-sm';resolveBtn.textContent='✓ Helped';
+    resolveBtn.onclick=()=>resolveHelp(h.id);
+    item.appendChild(resolveBtn);
+    itemsEl.appendChild(item);
+  });
 }
 
 function buildLb(containerId) {
@@ -1072,19 +1182,47 @@ function renderWorkerTasks(){
 function renderWorkerHistory(){
   const list=$('worker-history-list');if(!list)return;
   list.innerHTML='';
-  const mine=completions
+
+  // completions
+  const myComps=completions
     .filter(c=>c.worker_id===currentWorker?.id)
-    .map(c=>({...c,task:tasks.find(t=>t.id===c.task_id)}))
-    .filter(c=>c.task)
-    .sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at));
-  if(!mine.length){list.innerHTML='<p class="muted" style="font-size:.88rem">No completed tasks yet. Go get some points! 💪</p>';return;}
-  mine.forEach(c=>{
-    const row=document.createElement('div');row.className='hist-row';
-    const recLbl=recurrenceLabel(c.task);
-    row.innerHTML=`<span class="hist-check">✓</span>
-      <span class="hist-title">${c.task.title}${recLbl?` <span style="color:var(--purple);font-size:.72rem">${recLbl}</span>`:''}</span>
-      <span class="hist-pts">+${c.task.points_value||10}pt</span>
-      <span class="hist-date">${fmtDate(c.completed_at)}</span>`;
+    .map(c=>({type:'completion',date:c.completed_at,...c,task:tasks.find(t=>t.id===c.task_id)}))
+    .filter(c=>c.task);
+
+  // point adjustments
+  const myAdjs=pointAdjustments
+    .filter(p=>p.worker_id===currentWorker?.id)
+    .map(p=>({type:'adjustment',date:p.created_at,...p}));
+
+  // all together sorted newest first
+  const all=[...myComps,...myAdjs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  if(!all.length){list.innerHTML='<p class="muted" style="font-size:.88rem">Nothing here yet. Get out there and earn some points! 💪</p>';return;}
+
+  all.forEach(item=>{
+    const row=document.createElement('div');
+    if(item.type==='completion'){
+      row.className='hist-row';
+      const recLbl=recurrenceLabel(item.task);
+      row.innerHTML=`<span class="hist-check">✓</span>
+        <span class="hist-title">${item.task.title}${recLbl?` <span style="color:var(--purple);font-size:.72rem">${recLbl}</span>`:''}</span>
+        <span class="hist-pts">+${item.task.points_value||10}pt</span>
+        <span class="hist-date">${fmtDate(item.completed_at)}</span>`;
+    } else {
+      const isBonus=item.type_col==='bonus'||item.adj_type==='bonus'||Number(item.points)>0&&item.type_col!=='deduct';
+      // figure out type from the record
+      const adjType=item.type||item.adj_type||'bonus';
+      const isB=adjType==='bonus';
+      row.className=`adj-row ${isB?'bonus':'deduct'}`;
+      row.innerHTML=`
+        <span class="adj-icon">${isB?'⭐':'📉'}</span>
+        <div class="adj-info">
+          <div class="adj-title">${isB?'Bonus Points':'Point Deduction'}</div>
+          <div class="adj-reason">${item.reason||''}</div>
+        </div>
+        <span class="adj-pts ${isB?'plus':'minus'}">${isB?'+':'−'}${Math.abs(item.points)}pt</span>
+        <span class="adj-date">${fmtDate(item.created_at)}</span>`;
+    }
     list.appendChild(row);
   });
 }
@@ -1297,6 +1435,104 @@ async function saveEdit(){
     }
     closeEditModal();await loadData();
   } catch(e){alert('Error saving: '+e.message);}setSyncing(false);
+}
+
+// ══════════════════════════════════════
+// DECLINE TASK
+// ══════════════════════════════════════
+function openDeclineModal(task){
+  decliningTask=task;
+  $('decline-warning').textContent=`Declining this task will cost you ${task.points_value*2} points (double the task value of ${task.points_value}pts). The task will be opened up for anyone to claim.`;
+  $('decline-reason').value='';
+  $('decline-modal').classList.add('show');
+}
+function closeDeclineModal(){$('decline-modal').classList.remove('show');decliningTask=null;}
+
+async function submitDecline(){
+  const reason=($('decline-reason').value||'').trim();
+  if(!reason)return alert('Please explain why you are declining this task.');
+  const task=decliningTask;
+  const deduction=task.points_value*2;
+  setSyncing(true);
+  try {
+    await tursoBatch([
+      // record rejection
+      {sql:'INSERT INTO task_rejections (id,task_id,worker_id,reason,points_deducted) VALUES (?,?,?,?,?)',
+       args:[uuid(),task.id,currentWorker.id,reason,deduction]},
+      // convert task to everyone
+      {sql:'UPDATE tasks SET task_type=?,assign_to=NULL WHERE id=?',args:['everyone',task.id]},
+      // deduct points (floor at 0)
+      {sql:'UPDATE workers SET points=MAX(0,points-?) WHERE id=?',args:[deduction,currentWorker.id]},
+    ]);
+    closeDeclineModal();
+    await loadData();
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+// ══════════════════════════════════════
+// HELP REQUESTS
+// ══════════════════════════════════════
+async function requestHelp(task){
+  if(!confirm(`Let admin know you need help with "${task.title}"? You can still complete it yourself later.`))return;
+  setSyncing(true);
+  try {
+    await tursoFetch('INSERT INTO help_requests (id,task_id,worker_id,campus) VALUES (?,?,?,?)',
+      [uuid(),task.id,currentWorker.id,activeCampus]);
+    await loadData();
+    alert('Done! Your admin has been notified 🆘');
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+async function resolveHelp(helpId){
+  setSyncing(true);
+  try {
+    await tursoFetch('UPDATE help_requests SET resolved=?,resolved_at=? WHERE id=?',
+      ['1',new Date().toISOString(),helpId]);
+    await loadData();
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+// ══════════════════════════════════════
+// POINT ADJUSTMENTS (admin bonus/deduct)
+// ══════════════════════════════════════
+function openAdjModal(mode, worker){
+  adjMode=mode; adjWorker=worker;
+  $('adj-modal-title').textContent=mode==='bonus'?'⭐ Award Bonus Points':'📉 Deduct Points';
+  $('adj-submit-btn').textContent=mode==='bonus'?'Award Points':'Deduct Points';
+  $('adj-submit-btn').className=`btn ${mode==='bonus'?'btn-success':'btn-danger'}`;
+  $('adj-pts').value='10';
+  $('adj-reason').value='';
+  // populate worker select locked to this worker
+  const sel=$('adj-worker');
+  sel.innerHTML='';
+  const o=document.createElement('option');o.value=worker.id;o.textContent=worker.name;
+  sel.appendChild(o);
+  $('adj-modal').classList.add('show');
+}
+function closeAdjModal(){$('adj-modal').classList.remove('show');adjMode=null;adjWorker=null;}
+
+async function submitAdj(){
+  const pts=Number($('adj-pts').value)||0;
+  const reason=($('adj-reason').value||'').trim();
+  if(pts<=0)return alert('Please enter a points amount.');
+  if(!reason)return alert('Please provide a reason.');
+  const workerId=adjWorker.id;
+  const isBonus=adjMode==='bonus';
+  setSyncing(true);
+  try {
+    await tursoBatch([
+      {sql:'INSERT INTO point_adjustments (id,worker_id,campus,type,points,reason) VALUES (?,?,?,?,?,?)',
+       args:[uuid(),workerId,activeCampus,adjMode,pts,reason]},
+      isBonus
+        ? {sql:'UPDATE workers SET points=points+? WHERE id=?',args:[pts,workerId]}
+        : {sql:'UPDATE workers SET points=MAX(0,points-?) WHERE id=?',args:[pts,workerId]},
+    ]);
+    closeAdjModal();await loadData();
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
 }
 
 // ══════════════════════════════════════

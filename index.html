@@ -152,7 +152,7 @@ textarea.input{resize:vertical;min-height:60px;}
 .worker-card:hover{box-shadow:0 3px 10px rgba(244,167,185,.18);border-color:var(--pink);}
 .worker-card-info{flex:1;min-width:0;}
 .worker-card-name{font-weight:700;font-size:.95rem;color:var(--text);}
-.worker-card-email{color:var(--muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
 .worker-card-pts{text-align:right;flex-shrink:0;}
 .worker-card-pts .num{color:#C88A00;font-weight:700;font-size:1.05rem;}
 .worker-card-pts .lbl{color:var(--faint);font-size:.72rem;}
@@ -251,6 +251,14 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 .msg-status-past{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
 .msg-card-actions{display:flex;gap:.35rem;flex-shrink:0;align-items:center;}
 
+/* leaderboard rows */
+.lb-row{display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border);}
+.lb-row:last-child{border-bottom:none;}
+.lb-medal{font-size:1.15rem;width:28px;text-align:center;flex-shrink:0;}
+.lb-rank{width:28px;text-align:center;color:var(--muted);font-size:.85rem;flex-shrink:0;}
+.lb-name{flex:1;font-size:.9rem;color:var(--text);}
+.lb-pts{color:#C88A00;font-weight:700;font-size:.92rem;}
+
 /* message edit modal */
 #msg-edit-modal{display:none;position:fixed;inset:0;z-index:700;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
 #msg-edit-modal.show{display:flex!important;}
@@ -328,7 +336,6 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
             <h3>Add Worker</h3>
             <div class="form-grid">
               <div class="field"><label>Name</label><input class="input" id="w-name" placeholder="Full name"/></div>
-              <div class="field"><label>Email</label><input class="input" id="w-email" placeholder="email@cuesta.edu"/></div>
               <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches"></div></div>
               <div class="field"><label>Campus</label><div id="w-campus-display" style="color:var(--campus);font-weight:600;font-size:.9rem;padding:.3rem 0"></div></div>
               <button class="btn btn-primary" onclick="addWorker()">Add Worker</button>
@@ -732,6 +739,25 @@ function showView(id){VIEWS.forEach(v=>$(v).classList.toggle('hidden',v!==id));}
 async function loadData() {
   setSyncing(true);
   try {
+    // Ensure all tables exist (safe to run every time — IF NOT EXISTS)
+    await tursoBatch([
+      { sql:`CREATE TABLE IF NOT EXISTS daily_messages (
+          id TEXT PRIMARY KEY,
+          campus TEXT NOT NULL DEFAULT 'SLO',
+          show_date TEXT NOT NULL,
+          title TEXT,
+          body TEXT NOT NULL,
+          icon TEXT NOT NULL DEFAULT '📢',
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          UNIQUE(campus, show_date)
+        )` },
+      { sql:`CREATE INDEX IF NOT EXISTS idx_messages_campus_date ON daily_messages(campus, show_date)` },
+      { sql:`CREATE TABLE IF NOT EXISTS workers (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar_color TEXT NOT NULL DEFAULT '#F4A7B9', points INTEGER NOT NULL DEFAULT 0, campus TEXT NOT NULL DEFAULT 'SLO', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
+      { sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, points_value INTEGER NOT NULL DEFAULT 10, deadline TEXT, priority TEXT NOT NULL DEFAULT 'medium', task_type TEXT NOT NULL DEFAULT 'everyone', assign_to TEXT, campus TEXT NOT NULL DEFAULT 'SLO', collab_required INTEGER NOT NULL DEFAULT 2, recurrence TEXT NOT NULL DEFAULT 'none', recurrence_interval INTEGER, recurrence_day INTEGER, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
+      { sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), semester TEXT NOT NULL DEFAULT 'current', occurrence_key TEXT NOT NULL DEFAULT 'once', solo_claimed INTEGER NOT NULL DEFAULT 0, UNIQUE(task_id, worker_id, occurrence_key))` },
+      { sql:`CREATE TABLE IF NOT EXISTS semester_resets (id TEXT PRIMARY KEY, reset_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), semester_label TEXT NOT NULL)` },
+    ]);
+
     const [w,t,c,m] = await Promise.all([
       tursoFetch('SELECT * FROM workers ORDER BY points DESC'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
@@ -825,7 +851,7 @@ function renderWorkerList() {
     const card=document.createElement('div');card.className='worker-card';
     card.appendChild(avatarEl(w,'avatar-md'));
     const info=document.createElement('div');info.className='worker-card-info';
-    info.innerHTML=`<div class="worker-card-name">${w.name}</div><div class="worker-card-email">${w.email}</div>`;
+    info.innerHTML=`<div class="worker-card-name">${w.name}</div>`;
     card.appendChild(info);
     const pts=document.createElement('div');pts.className='worker-card-pts';
     pts.innerHTML=`<div class="num">${w.points}</div><div class="lbl">pts</div>`;
@@ -1142,13 +1168,13 @@ function onEditRecurrenceChange(){
 // CRUD
 // ══════════════════════════════════════
 async function addWorker(){
-  const name=($('w-name').value||'').trim(),email=($('w-email').value||'').trim();
-  if(!name)return alert('Please enter a name.');if(!email)return alert('Please enter an email.');
+  const name=($('w-name').value||'').trim();
+  if(!name)return alert('Please enter a name.');
   setSyncing(true);
   try {
-    await tursoFetch('INSERT INTO workers (id,name,email,avatar_color,campus) VALUES (?,?,?,?,?)',[uuid(),name,email,selectedColor,activeCampus]);
-    $('w-name').value='';$('w-email').value='';await loadData();
-  } catch(e){alert(e.message?.includes('UNIQUE')?'A worker with that email already exists.':'Error: '+e.message);}
+    await tursoFetch('INSERT INTO workers (id,name,avatar_color,campus) VALUES (?,?,?,?)',[uuid(),name,selectedColor,activeCampus]);
+    $('w-name').value='';await loadData();
+  } catch(e){alert('Error adding worker: '+e.message);}
   setSyncing(false);
 }
 

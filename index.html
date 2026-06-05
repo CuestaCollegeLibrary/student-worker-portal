@@ -296,6 +296,29 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 /* message edit modal */
 #msg-edit-modal{display:none;position:fixed;inset:0;z-index:700;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
 #msg-edit-modal.show{display:flex!important;}
+/* bonus pitch modal */
+#pitch-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
+#pitch-modal.show{display:flex!important;}
+#review-pitch-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
+#review-pitch-modal.show{display:flex!important;}
+.pitch-banner{background:#F5EFF9;border:1.5px solid #D4B8E0;border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:.85rem;}
+.pitch-banner-icon{font-size:1.5rem;flex-shrink:0;}
+.pitch-banner-body{flex:1;}
+.pitch-banner-title{font-weight:700;color:#5C2A70;font-size:.95rem;margin-bottom:.5rem;}
+.pitch-item{display:flex;align-items:flex-start;gap:.75rem;padding:.6rem 0;border-bottom:1px solid rgba(212,184,224,.3);}
+.pitch-item:last-child{border-bottom:none;}
+.pitch-item-info{flex:1;}
+.pitch-item-who{font-weight:700;font-size:.88rem;color:var(--text);}
+.pitch-item-desc{color:var(--muted);font-size:.78rem;margin-top:.15rem;line-height:1.45;}
+.pitch-item-ask{color:#5C2A70;font-size:.78rem;font-weight:600;margin-top:.2rem;}
+.pitch-item-btns{display:flex;gap:.4rem;flex-shrink:0;flex-direction:column;align-items:flex-end;}
+.pitch-row{background:#F5EFF9;border:1.5px solid #D4B8E0;border-radius:var(--r);padding:.85rem 1.2rem;display:flex;align-items:flex-start;gap:.85rem;flex-wrap:wrap;}
+.pitch-row.approved{background:#EAF8F0;border-color:#A0D9BB;}
+.pitch-row.denied{background:#FFF0F2;border-color:#F4A7B9;opacity:.7;}
+.pitch-status{font-size:.72rem;font-weight:700;padding:.15rem .55rem;border-radius:50px;display:inline-block;margin-top:.3rem;}
+.pitch-status-pending{background:#F5EFF9;color:#5C2A70;border:1px solid #D4B8E0;}
+.pitch-status-approved{background:#EAF8F0;color:#1A6B44;border:1px solid #A0D9BB;}
+.pitch-status-denied{background:#FFF0F2;color:#C0294A;border:1px solid #F4A7B9;}
 </style>
 </head>
 <body>
@@ -362,6 +385,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <div class="admin-grid">
         <div>
           <h2 class="section-title">Student Workers — <span id="workers-campus-label" style="color:var(--campus)"></span></h2>
+          <div id="pitch-banner" class="pitch-banner hidden">
+            <div class="pitch-banner-icon">⭐</div>
+            <div class="pitch-banner-body">
+              <div class="pitch-banner-title">Bonus Point Pitches Awaiting Review</div>
+              <div id="pitch-items"></div>
+            </div>
+          </div>
           <div id="worker-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
           <p class="muted hidden" id="no-workers-admin" style="font-size:.88rem;margin-top:.75rem">No workers added yet for this campus.</p>
         </div>
@@ -555,10 +585,29 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <button class="tab active" onclick="workerTab('tasks')">📋 My Tasks</button>
       <button class="tab" onclick="workerTab('history')">✅ History</button>
       <button class="tab" onclick="workerTab('leaderboard')">🏆 Leaderboard</button>
+      <button class="tab" onclick="workerTab('pitch')">⭐ Pitch for Points</button>
     </div>
     <div id="w-tasks"><div class="task-list" id="worker-task-list"></div></div>
     <div id="w-history" class="hidden"><h2 class="section-title">Completed This Semester</h2><div id="worker-history-list" style="display:flex;flex-direction:column;gap:.6rem"></div></div>
     <div id="w-leaderboard" class="hidden"><div style="max-width:420px"><div class="card" id="worker-lb"></div></div></div>
+    <div id="w-pitch" class="hidden">
+      <div style="max-width:560px">
+        <h2 class="section-title">⭐ Pitch for Bonus Points</h2>
+        <p class="muted" style="margin-bottom:1.5rem;font-size:.9rem;line-height:1.6">Did something great that wasn't on your task list? Tell us what you did and how many points you think it's worth. Your admin will review it and decide the final amount.</p>
+        <div class="form-panel" style="margin-bottom:1.5rem">
+          <h3>Submit a Pitch</h3>
+          <div class="form-grid">
+            <div class="field"><label>What did you do? *</label><textarea class="input" id="pitch-title" placeholder="Give it a short title…" style="min-height:48px"></textarea></div>
+            <div class="field"><label>Detailed explanation *</label><textarea class="input" id="pitch-desc" placeholder="Describe what you did, why it was helpful, and why you think it deserves points…" style="min-height:110px"></textarea></div>
+            <div class="field"><label>Points you're asking for</label><input class="input" id="pitch-pts" type="number" min="1" max="200" value="10"/></div>
+            <button class="btn btn-primary" onclick="submitPitch()">Submit Pitch ⭐</button>
+          </div>
+        </div>
+        <h3 class="section-title" style="font-size:1.1rem">Your Past Pitches</h3>
+        <div id="worker-pitch-list" style="display:flex;flex-direction:column;gap:.65rem"></div>
+        <p class="muted hidden" id="no-pitches-worker" style="font-size:.88rem">No pitches submitted yet.</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -646,6 +695,23 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div class="modal-btns">
       <button class="btn btn-ghost" style="flex:1" onclick="closeDeclineModal()">Cancel</button>
       <button class="btn btn-danger" style="flex:1" onclick="submitDecline()">Decline &amp; Lose Points</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW PITCH MODAL (admin approves/denies) -->
+<div id="review-pitch-modal" style="display:none">
+  <div class="edit-box">
+    <h3>⭐ Review Bonus Pitch</h3>
+    <div id="review-pitch-detail" style="background:var(--surface2);border-radius:var(--r);padding:1rem;margin-bottom:1rem;font-size:.88rem;line-height:1.6;color:var(--text)"></div>
+    <div class="form-grid">
+      <div class="field"><label>Points to award (you decide the final amount)</label><input class="input" id="review-pts" type="number" min="0" max="500"/></div>
+      <div class="field"><label>Note to worker (optional)</label><textarea class="input" id="review-note" placeholder="e.g. Great initiative! We're awarding slightly fewer points because…" style="min-height:72px"></textarea></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeReviewModal()">Cancel</button>
+      <button class="btn btn-danger" style="flex:1" onclick="decidePitch('deny')">✕ Deny</button>
+      <button class="btn btn-success" style="flex:1" onclick="decidePitch('approve')">✓ Approve</button>
     </div>
   </div>
 </div>
@@ -781,12 +847,12 @@ function ordinal(n) {
 // ══════════════════════════════════════
 // STATE
 // ══════════════════════════════════════
-let workers=[], tasks=[], completions=[], messages=[], helpRequests=[], pointAdjustments=[];
+let workers=[], tasks=[], completions=[], messages=[], helpRequests=[], pointAdjustments=[], bonusPitches=[];
 let currentWorker=null, activeCampus=null;
 let taskType='everyone', selectedColor='#F4A7B9';
 let editingTaskId=null, editingMsgId=null;
 let currentMotd=null;
-let decliningTask=null, adjMode=null, adjWorker=null;
+let decliningTask=null, adjMode=null, adjWorker=null, reviewingPitch=null;
 
 const AVATAR_COLORS=['#F4A7B9','#E8526E','#C8E6DA','#5CBF94','#A8D8EA','#6AB8D4','#D4B8E0','#9B6DB5','#FFEAA0','#E8A87C'];
 
@@ -822,15 +888,17 @@ async function loadData() {
       { sql:`CREATE TABLE IF NOT EXISTS help_requests (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, campus TEXT NOT NULL DEFAULT 'SLO', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), resolved TEXT NOT NULL DEFAULT '0', resolved_at TEXT)` },
       { sql:`CREATE TABLE IF NOT EXISTS point_adjustments (id TEXT PRIMARY KEY, worker_id TEXT NOT NULL, campus TEXT NOT NULL DEFAULT 'SLO', type TEXT NOT NULL DEFAULT 'bonus', points INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
       { sql:`CREATE TABLE IF NOT EXISTS task_rejections (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, reason TEXT NOT NULL, points_deducted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
+      { sql:`CREATE TABLE IF NOT EXISTS bonus_pitches (id TEXT PRIMARY KEY, worker_id TEXT NOT NULL, campus TEXT NOT NULL DEFAULT 'SLO', title TEXT NOT NULL, description TEXT NOT NULL, points_requested INTEGER NOT NULL DEFAULT 10, points_awarded INTEGER, status TEXT NOT NULL DEFAULT 'pending', admin_note TEXT, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), reviewed_at TEXT)` },
     ]);
 
-    const [w,t,c,m,h,p] = await Promise.all([
+    const [w,t,c,m,h,p,bp] = await Promise.all([
       tursoFetch('SELECT * FROM workers ORDER BY points DESC'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM completions'),
       tursoFetch('SELECT * FROM daily_messages ORDER BY show_date DESC'),
       tursoFetch('SELECT * FROM help_requests ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM point_adjustments ORDER BY created_at DESC'),
+      tursoFetch('SELECT * FROM bonus_pitches ORDER BY created_at DESC'),
     ]);
     workers          = w.map(r=>({...r, points:Number(r.points)||0}));
     tasks            = t.map(r=>({...r,
@@ -843,6 +911,7 @@ async function loadData() {
     messages         = m;
     helpRequests     = h;
     pointAdjustments = p.map(r=>({...r, points:Number(r.points)||0}));
+    bonusPitches     = bp.map(r=>({...r, points_requested:Number(r.points_requested)||0, points_awarded:r.points_awarded!=null?Number(r.points_awarded):null}));
     renderAll();
   } catch(e) {
     console.error(e);
@@ -863,6 +932,7 @@ function renderAll() {
   updateCampusLabels();
   renderWorkerGrid();
   renderWorkerList();
+  renderPitchBanner();
   renderAdminTasks();
   renderAdminLb();
   renderAssignSelect();
@@ -1155,7 +1225,7 @@ function renderWorkerView() {
   const ptsBox=document.createElement('div');ptsBox.className='worker-hero-pts';
   ptsBox.innerHTML=`<div class="pts-big">${w.points}</div><div class="pts-label">total points</div>`;
   hero.appendChild(ptsBox);
-  renderWorkerTasks();renderWorkerHistory();renderWorkerLb();updateWorkerTabLabel();
+  renderWorkerTasks();renderWorkerHistory();renderWorkerLb();renderWorkerPitches();updateWorkerTabLabel();
 }
 
 function myVisibleTasks(){
@@ -1240,8 +1310,8 @@ function adminTab(name){
   $('admin-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['workers','tasks','leaderboard','messages'][i]===name));
 }
 function workerTab(name){
-  ['w-tasks','w-history','w-leaderboard'].forEach((id,i)=>$(id).classList.toggle('hidden',['tasks','history','leaderboard'][i]!==name));
-  $('worker-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['tasks','history','leaderboard'][i]===name));
+  ['w-tasks','w-history','w-leaderboard','w-pitch'].forEach((id,i)=>$(id).classList.toggle('hidden',['tasks','history','leaderboard','pitch'][i]!==name));
+  $('worker-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['tasks','history','leaderboard','pitch'][i]===name));
 }
 
 // ══════════════════════════════════════
@@ -1536,6 +1606,113 @@ async function submitAdj(){
         : {sql:'UPDATE workers SET points=MAX(0,points-?) WHERE id=?',args:[pts,workerId]},
     ]);
     closeAdjModal();await loadData();
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+// ══════════════════════════════════════
+// BONUS PITCHES
+// ══════════════════════════════════════
+function renderPitchBanner() {
+  const banner=$('pitch-banner');
+  const itemsEl=$('pitch-items');
+  if(!banner||!itemsEl)return;
+  const pending=bonusPitches.filter(p=>p.campus===activeCampus&&p.status==='pending');
+  banner.classList.toggle('hidden', pending.length===0);
+  itemsEl.innerHTML='';
+  pending.forEach(p=>{
+    const worker=workers.find(w=>w.id===p.worker_id);
+    const item=document.createElement('div');item.className='pitch-item';
+    const info=document.createElement('div');info.className='pitch-item-info';
+    info.innerHTML=`<div class="pitch-item-who">${worker?.name||'?'}</div>
+      <div class="pitch-item-desc">${p.title}</div>
+      <div class="pitch-item-ask">Asking for ${p.points_requested} pts</div>`;
+    item.appendChild(info);
+    const btns=document.createElement('div');btns.className='pitch-item-btns';
+    const reviewBtn=document.createElement('button');reviewBtn.className='btn btn-ghost btn-sm';
+    reviewBtn.textContent='Review →';reviewBtn.onclick=()=>openReviewModal(p);
+    btns.appendChild(reviewBtn);
+    item.appendChild(btns);
+    itemsEl.appendChild(item);
+  });
+}
+
+function renderWorkerPitches(){
+  const list=$('worker-pitch-list');if(!list)return;
+  const mine=bonusPitches.filter(p=>p.worker_id===currentWorker?.id)
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  $('no-pitches-worker')?.classList.toggle('hidden', mine.length>0);
+  list.innerHTML='';
+  mine.forEach(p=>{
+    const row=document.createElement('div');
+    row.className=`pitch-row ${p.status==='approved'?'approved':p.status==='denied'?'denied':''}`;
+    const statusClass=p.status==='approved'?'pitch-status-approved':p.status==='denied'?'pitch-status-denied':'pitch-status-pending';
+    const statusLabel=p.status==='approved'?`✓ Approved — ${p.points_awarded}pts awarded`:p.status==='denied'?'✕ Not approved this time':'⏳ Pending review';
+    row.innerHTML=`
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:.2rem">${p.title}</div>
+        <div style="color:var(--muted);font-size:.78rem;line-height:1.45;margin-bottom:.35rem">${p.description}</div>
+        <div style="font-size:.77rem;color:#5C2A70;font-weight:600">You asked for ${p.points_requested}pts</div>
+        ${p.admin_note?`<div style="font-size:.76rem;color:var(--muted);margin-top:.25rem;font-style:italic">Admin note: ${p.admin_note}</div>`:''}
+        <span class="pitch-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <span style="color:var(--faint);font-size:.74rem;flex-shrink:0;align-self:flex-start">${fmtDate(p.created_at)}</span>`;
+    list.appendChild(row);
+  });
+}
+
+async function submitPitch(){
+  const title=($('pitch-title').value||'').trim();
+  const desc=($('pitch-desc').value||'').trim();
+  const pts=Number($('pitch-pts').value)||10;
+  if(!title)return alert('Please give your pitch a title.');
+  if(desc.length<20)return alert('Please write a more detailed explanation (at least a sentence or two).');
+  setSyncing(true);
+  try {
+    await tursoFetch(
+      'INSERT INTO bonus_pitches (id,worker_id,campus,title,description,points_requested) VALUES (?,?,?,?,?,?)',
+      [uuid(),currentWorker.id,activeCampus,title,desc,pts]
+    );
+    $('pitch-title').value='';$('pitch-desc').value='';$('pitch-pts').value='10';
+    await loadData();
+    alert('Pitch submitted! Your admin will review it soon ⭐');
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+function openReviewModal(pitch){
+  reviewingPitch=pitch;
+  const worker=workers.find(w=>w.id===pitch.worker_id);
+  $('review-pitch-detail').innerHTML=`
+    <strong>${worker?.name||'?'}</strong> is pitching:<br><br>
+    <strong>${pitch.title}</strong><br><br>
+    ${pitch.description}<br><br>
+    <em>They're asking for <strong>${pitch.points_requested} points</strong>.</em>`;
+  $('review-pts').value=pitch.points_requested;
+  $('review-note').value='';
+  $('review-pitch-modal').classList.add('show');
+}
+function closeReviewModal(){$('review-pitch-modal').classList.remove('show');reviewingPitch=null;}
+
+async function decidePitch(decision){
+  if(!reviewingPitch)return;
+  const note=($('review-note').value||'').trim()||null;
+  const pts=Number($('review-pts').value)||0;
+  if(decision==='approve'&&pts<=0)return alert('Please enter a points amount to award.');
+  setSyncing(true);
+  try {
+    const stmts=[
+      {sql:'UPDATE bonus_pitches SET status=?,points_awarded=?,admin_note=?,reviewed_at=? WHERE id=?',
+       args:[decision,decision==='approve'?pts:0,note,new Date().toISOString(),reviewingPitch.id]},
+    ];
+    if(decision==='approve'){
+      // award points + log in point_adjustments
+      stmts.push({sql:'UPDATE workers SET points=points+? WHERE id=?',args:[pts,reviewingPitch.worker_id]});
+      stmts.push({sql:'INSERT INTO point_adjustments (id,worker_id,campus,type,points,reason) VALUES (?,?,?,?,?,?)',
+        args:[uuid(),reviewingPitch.worker_id,activeCampus,'bonus',pts,`Bonus pitch approved: ${reviewingPitch.title}`]});
+    }
+    await tursoBatch(stmts);
+    closeReviewModal();await loadData();
   } catch(e){alert('Error: '+e.message);}
   setSyncing(false);
 }

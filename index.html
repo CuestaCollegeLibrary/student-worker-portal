@@ -322,6 +322,14 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 .pitch-status-pending{background:#F5EFF9;color:#5C2A70;border:1px solid #D4B8E0;}
 .pitch-status-approved{background:#EAF8F0;color:#1A6B44;border:1px solid #A0D9BB;}
 .pitch-status-denied{background:#FFF0F2;color:#C0294A;border:1px solid #F4A7B9;}
+
+/* worker profile modal */
+#worker-profile-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;}
+#worker-profile-modal.show{display:flex!important;}
+.profile-box{background:#fff;border:1.5px solid var(--border2);border-radius:var(--r-xl);padding:1.75rem;width:100%;max-width:560px;margin:auto;}
+.profile-section{margin-bottom:1.5rem;}
+.profile-section-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:1px solid var(--border);}
+.profile-empty{color:var(--muted);font-size:.82rem;font-style:italic;}
 </style>
 </head>
 <body>
@@ -397,6 +405,12 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
           </div>
           <div id="worker-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
           <p class="muted hidden" id="no-workers-admin" style="font-size:.88rem;margin-top:.75rem">No workers added yet for this campus.</p>
+          <!-- past pitches -->
+          <div style="margin-top:2rem">
+            <h2 class="section-title" style="font-size:1.1rem">All Bonus Pitches</h2>
+            <div id="admin-pitch-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
+            <p class="muted hidden" id="no-pitches-admin" style="font-size:.88rem;margin-top:.5rem">No pitches yet.</p>
+          </div>
         </div>
         <div class="sticky-panel">
           <div class="form-panel">
@@ -719,6 +733,32 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
   </div>
 </div>
 
+<!-- WORKER PROFILE MODAL (admin clicks on a worker to see full history) -->
+<div id="worker-profile-modal" style="display:none">
+  <div class="profile-box">
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+      <div id="profile-avatar" class="avatar avatar-lg"></div>
+      <div>
+        <div id="profile-name" style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--text)"></div>
+        <div id="profile-pts" style="color:#C88A00;font-weight:700;font-size:1rem"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="closeProfileModal()">✕ Close</button>
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">✅ Completed Tasks</div>
+      <div id="profile-completions" style="display:flex;flex-direction:column;gap:.5rem"></div>
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">⭐ Bonus Pitches</div>
+      <div id="profile-pitches" style="display:flex;flex-direction:column;gap:.5rem"></div>
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">📊 Point Adjustments</div>
+      <div id="profile-adjustments" style="display:flex;flex-direction:column;gap:.5rem"></div>
+    </div>
+  </div>
+</div>
+
 <canvas id="confetti-canvas"></canvas>
 <div id="celebration" style="display:none" onclick="closeCelebration()">
   <div class="celeb-box" onclick="event.stopPropagation()">
@@ -992,6 +1032,8 @@ function renderWorkerList() {
   $('no-workers-admin').classList.toggle('hidden',cw.length>0);
   cw.forEach(w=>{
     const card=document.createElement('div');card.className='worker-card';
+    card.style.cursor='pointer';
+    card.onclick=(e)=>{ if(e.target.tagName==='BUTTON')return; openProfileModal(w); };
     card.appendChild(avatarEl(w,'avatar-md'));
     const info=document.createElement('div');info.className='worker-card-info';
     info.innerHTML=`<div class="worker-card-name">${w.name}</div>`;
@@ -1009,6 +1051,7 @@ function renderWorkerList() {
     deduct.onclick=()=>openAdjModal('deduct',w);card.appendChild(deduct);
     list.appendChild(card);
   });
+  renderAdminPitches();
 }
 
 function renderAssignSelect() {
@@ -1702,14 +1745,14 @@ async function decidePitch(decision){
   const note=($('review-note').value||'').trim()||null;
   const pts=Number($('review-pts').value)||0;
   if(decision==='approve'&&pts<=0)return alert('Please enter a points amount to award.');
+  const dbStatus = decision==='approve' ? 'approved' : 'denied';
   setSyncing(true);
   try {
     const stmts=[
       {sql:'UPDATE bonus_pitches SET status=?,points_awarded=?,admin_note=?,reviewed_at=? WHERE id=?',
-       args:[decision,decision==='approve'?pts:0,note,new Date().toISOString(),reviewingPitch.id]},
+       args:[dbStatus,decision==='approve'?pts:0,note,new Date().toISOString(),reviewingPitch.id]},
     ];
     if(decision==='approve'){
-      // award points + log in point_adjustments
       stmts.push({sql:'UPDATE workers SET points=points+? WHERE id=?',args:[pts,reviewingPitch.worker_id]});
       stmts.push({sql:'INSERT INTO point_adjustments (id,worker_id,campus,type,points,reason) VALUES (?,?,?,?,?,?)',
         args:[uuid(),reviewingPitch.worker_id,activeCampus,'bonus',pts,`Bonus pitch approved: ${reviewingPitch.title}`]});
@@ -1719,6 +1762,91 @@ async function decidePitch(decision){
   } catch(e){alert('Error: '+e.message);}
   setSyncing(false);
 }
+
+function renderAdminPitches(){
+  const list=$('admin-pitch-list');if(!list)return;
+  const all=bonusPitches.filter(p=>p.campus===activeCampus)
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  $('no-pitches-admin')?.classList.toggle('hidden',all.length>0);
+  list.innerHTML='';
+  all.forEach(p=>{
+    const worker=workers.find(w=>w.id===p.worker_id);
+    const statusClass=p.status==='approved'?'pitch-status-approved':p.status==='denied'?'pitch-status-denied':'pitch-status-pending';
+    const statusLabel=p.status==='approved'?`✓ Approved — ${p.points_awarded}pts`:p.status==='denied'?'✕ Denied':'⏳ Pending';
+    const row=document.createElement('div');
+    row.className=`pitch-row ${p.status==='approved'?'approved':p.status==='denied'?'denied':''}`;
+    row.innerHTML=`
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.2rem">
+          <span style="font-weight:700;font-size:.88rem">${worker?.name||'?'}</span>
+          <span class="pitch-status ${statusClass}">${statusLabel}</span>
+        </div>
+        <div style="font-weight:600;font-size:.85rem;color:var(--text);margin-bottom:.15rem">${p.title}</div>
+        <div style="color:var(--muted);font-size:.76rem">Asked for ${p.points_requested}pts · ${fmtDate(p.created_at)}</div>
+        ${p.admin_note?`<div style="font-size:.75rem;color:var(--muted);margin-top:.2rem;font-style:italic">${p.admin_note}</div>`:''}
+      </div>`;
+    if(p.status==='pending'){
+      const btn=document.createElement('button');btn.className='btn btn-ghost btn-sm';btn.textContent='Review →';
+      btn.onclick=()=>openReviewModal(p);
+      row.appendChild(btn);
+    }
+    list.appendChild(row);
+  });
+}
+
+function openProfileModal(worker){
+  const el=$('worker-profile-modal');if(!el)return;
+  // header
+  const av=$('profile-avatar');
+  av.style.background=worker.avatar_color;
+  av.style.boxShadow=`0 0 20px ${worker.avatar_color}55`;
+  av.textContent=worker.name.trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  $('profile-name').textContent=worker.name;
+  $('profile-pts').textContent=`${worker.points} pts total`;
+
+  // completions
+  const comps=completions.filter(c=>c.worker_id===worker.id)
+    .map(c=>({...c,task:tasks.find(t=>t.id===c.task_id)}))
+    .filter(c=>c.task)
+    .sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at));
+  const compEl=$('profile-completions');
+  compEl.innerHTML=comps.length?'':'<p class="profile-empty">No completed tasks yet.</p>';
+  comps.forEach(c=>{
+    const r=document.createElement('div');r.className='hist-row';
+    r.innerHTML=`<span style="color:var(--green);font-weight:700">✓</span><span style="flex:1;font-size:.85rem;color:var(--text)">${c.task.title}</span><span style="color:#C88A00;font-weight:700;font-size:.82rem">+${c.task.points_value}pt</span><span style="color:var(--faint);font-size:.74rem">${fmtDate(c.completed_at)}</span>`;
+    compEl.appendChild(r);
+  });
+
+  // pitches
+  const pitches=bonusPitches.filter(p=>p.worker_id===worker.id)
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const pitchEl=$('profile-pitches');
+  pitchEl.innerHTML=pitches.length?'':'<p class="profile-empty">No bonus pitches yet.</p>';
+  pitches.forEach(p=>{
+    const statusClass=p.status==='approved'?'pitch-status-approved':p.status==='denied'?'pitch-status-denied':'pitch-status-pending';
+    const statusLabel=p.status==='approved'?`✓ ${p.points_awarded}pts awarded`:p.status==='denied'?'✕ Denied':'⏳ Pending';
+    const r=document.createElement('div');r.className=`pitch-row ${p.status==='approved'?'approved':p.status==='denied'?'denied':''}`;
+    r.style.cssText='padding:.65rem .9rem;';
+    r.innerHTML=`<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.84rem">${p.title}</div><div style="font-size:.74rem;color:var(--muted)">Asked ${p.points_requested}pts · ${fmtDate(p.created_at)}</div></div><span class="pitch-status ${statusClass}">${statusLabel}</span>`;
+    pitchEl.appendChild(r);
+  });
+
+  // adjustments
+  const adjs=pointAdjustments.filter(a=>a.worker_id===worker.id)
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const adjEl=$('profile-adjustments');
+  adjEl.innerHTML=adjs.length?'':'<p class="profile-empty">No adjustments yet.</p>';
+  adjs.forEach(a=>{
+    const isBonus=a.type==='bonus';
+    const r=document.createElement('div');r.className=`adj-row ${isBonus?'bonus':'deduct'}`;
+    r.style.cssText='padding:.65rem .9rem;';
+    r.innerHTML=`<span class="adj-icon">${isBonus?'⭐':'📉'}</span><div class="adj-info"><div class="adj-title">${isBonus?'Bonus':'Deduction'}</div><div class="adj-reason">${a.reason}</div></div><span class="adj-pts ${isBonus?'plus':'minus'}">${isBonus?'+':'−'}${Math.abs(a.points)}pt</span><span class="adj-date">${fmtDate(a.created_at)}</span>`;
+    adjEl.appendChild(r);
+  });
+
+  el.classList.add('show');
+}
+function closeProfileModal(){$('worker-profile-modal').classList.remove('show');}
 
 // ══════════════════════════════════════
 // MESSAGES

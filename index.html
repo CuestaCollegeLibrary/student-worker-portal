@@ -260,12 +260,15 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
   .sticky-panel{position:static;}
   .edit-box{padding:1.25rem;}
   .celeb-box{padding:2rem 1.5rem;margin:1rem;}
+  .motd-box{padding:1.25rem;border-radius:var(--r-lg);}
+  .motd-icon{font-size:2rem;}
+  .motd-title{font-size:1.1rem;}
 }
 
 /* ── MESSAGE OF THE DAY ── */
 #motd-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem;}
 #motd-modal.show{display:flex!important;}
-.motd-box{background:#fff;border:2.5px solid var(--pink);border-radius:var(--r-xl);padding:2rem;width:100%;max-width:420px;text-align:center;animation:celebIn .4s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 40px rgba(244,167,185,.4);}
+.motd-box{background:#fff;border:2.5px solid var(--pink);border-radius:var(--r-xl);padding:2rem;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;text-align:center;animation:celebIn .4s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 40px rgba(244,167,185,.4);}
 .motd-icon{font-size:2.8rem;margin-bottom:.5rem;}
 .motd-from{font-size:.75rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--pink);margin-bottom:.4rem;}
 .motd-title{font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--text);margin-bottom:.85rem;font-weight:700;}

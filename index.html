@@ -1494,14 +1494,38 @@ async function completeTask(task,soloClai){
 async function resetSemester(){
   const label=prompt(`Label for this semester:`,semester());if(!label)return;
   const cw=campusWorkers();if(!cw.length)return alert('No workers to reset.');
-  if(!confirm(`Reset all ${CAMPUS_LABELS[activeCampus]} worker points to 0 for "${label}"?\nThis cannot be undone.`))return;
+  if(!confirm(`Reset all ${CAMPUS_LABELS[activeCampus]} worker points to 0 for "${label}"?\n\nThis will also clear:\n• All task completions\n• All point adjustments & deductions\n• All bonus pitches\n• All help requests\n• All task rejections\n\nTasks and messages will be kept.\nThis cannot be undone.`))return;
   setSyncing(true);
   try {
-    const batches=cw.map(w=>({sql:'UPDATE workers SET points=0 WHERE id=?',args:[w.id]}));
+    const ids=cw.map(w=>w.id);
+    const batches=[];
+
+    // zero out points for all campus workers
+    ids.forEach(id=>batches.push({sql:'UPDATE workers SET points=0 WHERE id=?',args:[id]}));
+
+    // delete completions for campus workers
+    ids.forEach(id=>batches.push({sql:'DELETE FROM completions WHERE worker_id=?',args:[id]}));
+
+    // delete point adjustments for campus workers
+    ids.forEach(id=>batches.push({sql:'DELETE FROM point_adjustments WHERE worker_id=?',args:[id]}));
+
+    // delete bonus pitches for campus workers
+    ids.forEach(id=>batches.push({sql:'DELETE FROM bonus_pitches WHERE worker_id=?',args:[id]}));
+
+    // delete help requests for campus workers
+    ids.forEach(id=>batches.push({sql:'DELETE FROM help_requests WHERE worker_id=?',args:[id]}));
+
+    // delete task rejections for campus workers
+    ids.forEach(id=>batches.push({sql:'DELETE FROM task_rejections WHERE worker_id=?',args:[id]}));
+
+    // log the reset
     batches.push({sql:'INSERT INTO semester_resets (id,semester_label) VALUES (?,?)',args:[uuid(),`${label} (${activeCampus})`]});
-    await tursoBatch(batches);await loadData();
-    alert(`✅ ${CAMPUS_LABELS[activeCampus]} semester reset!`);
-  } catch(e){alert('Error: '+e.message);}setSyncing(false);
+
+    await tursoBatch(batches);
+    await loadData();
+    alert(`✅ ${CAMPUS_LABELS[activeCampus]} semester reset!\n\nAll points and history cleared for ${label}.`);
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
 }
 
 // ══════════════════════════════════════

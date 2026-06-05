@@ -1048,9 +1048,9 @@ function buildTaskRow(task, isAdmin) {
       const btn=document.createElement('button');btn.className='btn btn-success btn-sm';btn.textContent='✓ Complete';
       btn.onclick=()=>completeTask(task,false);actions.appendChild(btn);
       // specific task: decline + help buttons
-      if(task.task_type==='specific'&&task.assign_to===currentWorker?.id){
+      if(task.task_type==='specific'&&String(task.assign_to).trim()===String(currentWorker?.id).trim()){
         // check if already requested help
-        const alreadyHelp=helpRequests.some(h=>h.task_id===task.id&&h.worker_id===currentWorker?.id&&h.resolved==='0');
+        const alreadyHelp=helpRequests.some(h=>h.task_id===task.id&&h.worker_id===currentWorker?.id&&String(h.resolved)==='0');
         if(!alreadyHelp){
           const helpBtn=document.createElement('button');helpBtn.className='btn btn-warn btn-sm';helpBtn.textContent='🆘 Need Help';
           helpBtn.onclick=()=>requestHelp(task);actions.appendChild(helpBtn);
@@ -1058,11 +1058,16 @@ function buildTaskRow(task, isAdmin) {
           const helpNote=document.createElement('span');helpNote.style.cssText='font-size:.76rem;color:#7A5500;font-weight:600';
           helpNote.textContent='🆘 Help requested';actions.appendChild(helpNote);
         }
-        // decline — only if worker has enough points
+        // decline — only if worker has enough points to cover double the task value
         const canDecline=currentWorker.points>=(task.points_value*2);
         if(canDecline){
           const decBtn=document.createElement('button');decBtn.className='btn btn-danger btn-sm';decBtn.textContent='✕ Decline';
           decBtn.onclick=()=>openDeclineModal(task);actions.appendChild(decBtn);
+        } else {
+          const noDecline=document.createElement('span');noDecline.style.cssText='font-size:.73rem;color:var(--faint)';
+          noDecline.title=`Need ${task.points_value*2}pts to decline`;
+          noDecline.textContent='(need more pts to decline)';
+          actions.appendChild(noDecline);
         }
       }
       // collaborative: also show solo checkbox
@@ -1091,7 +1096,7 @@ function renderAdminTasks() {
   $('no-tasks-admin').classList.toggle('hidden',ct.length>0);
   ct.forEach(t=>list.appendChild(buildTaskRow(t,true)));
   // help request banner
-  const pending=helpRequests.filter(h=>h.campus===activeCampus&&h.resolved==='0');
+  const pending=helpRequests.filter(h=>h.campus===activeCampus&&String(h.resolved)==='0');
   const banner=$('help-banner');
   const itemsEl=$('help-items');
   if(!banner||!itemsEl)return;
@@ -1157,7 +1162,7 @@ function myVisibleTasks(){
   return tasks.filter(t=>
     (t.task_type==='everyone'&&t.campus===activeCampus)||
     (t.task_type==='collaborative'&&t.campus===activeCampus)||
-    (t.task_type==='specific'&&t.assign_to===currentWorker?.id)
+    (t.task_type==='specific'&&String(t.assign_to).trim()===String(currentWorker?.id).trim())
   );
 }
 

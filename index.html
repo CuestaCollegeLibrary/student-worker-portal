@@ -199,7 +199,62 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 
 .solo-claim{display:flex;align-items:center;gap:.5rem;background:#F5EFF9;border:1.5px solid #D4B8E0;border-radius:10px;padding:.5rem .75rem;cursor:pointer;font-size:.82rem;color:#5C2A70;margin-top:.35rem;font-weight:600;}
 .solo-claim input{accent-color:#5C2A70;width:15px;height:15px;cursor:pointer;}
-</style>
+
+/* ── MOBILE IMPROVEMENTS ── */
+@media(max-width:600px){
+  .header{padding:.7rem 1rem;}
+  .header-brand .name{font-size:.9rem;}
+  .header-ctx{display:none;}
+  .campus-pill{font-size:.68rem;padding:.15rem .5rem;}
+  .page{padding:1.25rem .85rem;}
+  .tabs{gap:.3rem;margin-bottom:1.25rem;}
+  .tab{padding:.4rem .75rem;font-size:.8rem;}
+  .reset-btn{padding:.4rem .75rem;font-size:.78rem;}
+  .worker-hero{padding:1.1rem;gap:1rem;}
+  .worker-hero-name{font-size:1.2rem;}
+  .pts-big{font-size:1.9rem;}
+  .task-row{padding:.8rem .95rem;gap:.6rem;}
+  .task-title{font-size:.88rem;}
+  .worker-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+  .worker-pick-btn{padding:1.1rem .75rem;}
+  .avatar-lg{width:52px;height:52px;font-size:1.1rem;}
+  .form-panel{padding:1.1rem;}
+  .landing-btns .btn{font-size:.88rem;padding:.75rem 1.1rem;}
+  h2.section-title{font-size:1.15rem;}
+  .admin-grid,.task-grid{grid-template-columns:1fr;}
+  .form-row.col2,.form-row.col3{grid-template-columns:1fr;}
+  .sticky-panel{position:static;}
+  .edit-box{padding:1.25rem;}
+  .celeb-box{padding:2rem 1.5rem;margin:1rem;}
+}
+
+/* ── MESSAGE OF THE DAY ── */
+#motd-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(61,21,32,.5);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem;}
+#motd-modal.show{display:flex;}
+.motd-box{background:#fff;border:2.5px solid var(--pink);border-radius:var(--r-xl);padding:2rem;width:100%;max-width:420px;text-align:center;animation:celebIn .4s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 40px rgba(244,167,185,.4);}
+.motd-icon{font-size:2.8rem;margin-bottom:.5rem;}
+.motd-from{font-size:.75rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--pink);margin-bottom:.4rem;}
+.motd-title{font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--text);margin-bottom:.85rem;font-weight:700;}
+.motd-body{color:var(--muted);font-size:.95rem;line-height:1.65;margin-bottom:1.25rem;text-align:left;}
+.motd-dismiss{width:100%;}
+
+/* admin message list */
+.msg-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r-lg);padding:1rem 1.15rem;display:flex;align-items:flex-start;gap:.85rem;box-shadow:0 1px 4px rgba(244,167,185,.08);}
+.msg-card.scheduled{border-color:#A8D8EA;background:#F0F8FF;}
+.msg-card.active-today{border-color:var(--pink);background:#FFF5F7;}
+.msg-card-body{flex:1;min-width:0;}
+.msg-card-date{font-size:.74rem;font-weight:700;color:var(--muted);margin-bottom:.2rem;}
+.msg-card-text{font-size:.9rem;color:var(--text);line-height:1.5;word-break:break-word;}
+.msg-card-status{font-size:.7rem;font-weight:700;padding:.15rem .55rem;border-radius:50px;display:inline-block;margin-top:.35rem;}
+.msg-status-today{background:#FFE8EC;color:#C0294A;border:1px solid #F4A7B9;}
+.msg-status-scheduled{background:#EAF6FA;color:#1A4A6B;border:1px solid #A8D8EA;}
+.msg-status-past{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+.msg-card-actions{display:flex;gap:.35rem;flex-shrink:0;align-items:center;}
+
+/* message edit modal */
+#msg-edit-modal{display:none;position:fixed;inset:0;z-index:700;background:rgba(61,21,32,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;}
+#msg-edit-modal.show{display:flex;}
+
 </head>
 <body>
 
@@ -256,6 +311,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <button class="tab active" onclick="adminTab('workers')">👤 Workers</button>
       <button class="tab" onclick="adminTab('tasks')">📋 Tasks</button>
       <button class="tab" onclick="adminTab('leaderboard')">🏆 Leaderboard</button>
+      <button class="tab" onclick="adminTab('messages')">💌 Messages</button>
       <button class="reset-btn" onclick="resetSemester()">🔄 Reset Semester</button>
     </div>
 
@@ -364,6 +420,58 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div id="admin-leaderboard" class="hidden">
       <h2 class="section-title">Leaderboard — <span id="lb-campus-label" style="color:var(--campus)"></span></h2>
       <div style="max-width:460px"><div class="card" id="admin-lb"></div></div>
+    </div>
+
+    <!-- MESSAGES TAB -->
+    <div id="admin-messages" class="hidden">
+      <div class="admin-grid">
+        <div>
+          <h2 class="section-title">Messages — <span id="msgs-campus-label" style="color:var(--campus)"></span></h2>
+          <div id="msg-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
+          <p class="muted hidden" id="no-msgs-admin" style="font-size:.88rem;margin-top:.75rem">No messages scheduled yet.</p>
+        </div>
+        <div class="sticky-panel">
+          <div class="form-panel">
+            <h3>New Message</h3>
+            <div class="form-grid">
+              <div class="field"><label>Date to show</label><input class="input" id="msg-date" type="date"/></div>
+              <div class="field"><label>Title (optional)</label><input class="input" id="msg-title" placeholder="e.g. Happy Monday! 🌸"/></div>
+              <div class="field"><label>Message *</label><textarea class="input" id="msg-body" placeholder="Write your message to the team…" style="min-height:100px"></textarea></div>
+              <div class="field"><label>Icon (emoji)</label><input class="input" id="msg-icon" placeholder="📢" maxlength="4" style="font-size:1.4rem;text-align:center"/></div>
+              <button class="btn btn-primary" onclick="addMessage()">Schedule Message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MOTD POPUP (worker sees this) -->
+<div id="motd-modal">
+  <div class="motd-box">
+    <div class="motd-icon" id="motd-icon">📢</div>
+    <div class="motd-from">Message from your admin</div>
+    <div class="motd-title" id="motd-title"></div>
+    <div class="motd-body" id="motd-body"></div>
+    <button class="btn btn-primary motd-dismiss" onclick="dismissMotd()">Got it! 💕</button>
+  </div>
+</div>
+
+<!-- MESSAGE EDIT MODAL -->
+<div id="msg-edit-modal">
+  <div class="edit-box">
+    <h3>Edit Message</h3>
+    <div class="form-grid">
+      <div class="field"><label>Date to show</label><input class="input" id="medit-date" type="date"/></div>
+      <div class="field"><label>Title (optional)</label><input class="input" id="medit-title" placeholder="e.g. Happy Monday!"/></div>
+      <div class="field"><label>Message *</label><textarea class="input" id="medit-body" style="min-height:100px"></textarea></div>
+      <div class="field"><label>Icon (emoji)</label><input class="input" id="medit-icon" maxlength="4" style="font-size:1.4rem;text-align:center"/></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeMsgEditModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveMsgEdit()">Save</button>
     </div>
   </div>
 </div>
@@ -594,10 +702,11 @@ function ordinal(n) {
 // ══════════════════════════════════════
 // STATE
 // ══════════════════════════════════════
-let workers=[], tasks=[], completions=[];
+let workers=[], tasks=[], completions=[], messages=[];
 let currentWorker=null, activeCampus=null;
 let taskType='everyone', selectedColor='#F4A7B9';
-let editingTaskId=null;
+let editingTaskId=null, editingMsgId=null;
+let currentMotd=null;
 
 const AVATAR_COLORS=['#F4A7B9','#E8526E','#C8E6DA','#5CBF94','#A8D8EA','#6AB8D4','#D4B8E0','#9B6DB5','#FFEAA0','#E8A87C'];
 
@@ -623,10 +732,11 @@ function showView(id){VIEWS.forEach(v=>$(v).classList.toggle('hidden',v!==id));}
 async function loadData() {
   setSyncing(true);
   try {
-    const [w,t,c] = await Promise.all([
+    const [w,t,c,m] = await Promise.all([
       tursoFetch('SELECT * FROM workers ORDER BY points DESC'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM completions'),
+      tursoFetch('SELECT * FROM daily_messages ORDER BY show_date DESC'),
     ]);
     workers     = w.map(r=>({...r, points:Number(r.points)||0}));
     tasks       = t.map(r=>({...r,
@@ -636,6 +746,7 @@ async function loadData() {
       recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,
     }));
     completions = c.map(r=>({...r, solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1}));
+    messages    = m;
     renderAll();
   } catch(e) {
     console.error(e);
@@ -659,6 +770,7 @@ function renderAll() {
   renderAdminTasks();
   renderAdminLb();
   renderAssignSelect();
+  renderAdminMessages();
   if (currentWorker) {
     const fresh=workers.find(w=>w.id===currentWorker.id);
     if(fresh) currentWorker=fresh;
@@ -668,7 +780,7 @@ function renderAll() {
 
 function updateCampusLabels() {
   const label=CAMPUS_LABELS[activeCampus]||'';
-  ['workers-campus-label','tasks-campus-label','lb-campus-label'].forEach(id=>{const el=$(id);if(el)el.textContent=label;});
+  ['workers-campus-label','tasks-campus-label','lb-campus-label','msgs-campus-label'].forEach(id=>{const el=$(id);if(el)el.textContent=label;});
   const d=$('w-campus-display');if(d)d.textContent=`${CAMPUS_ICONS[activeCampus]||''} ${label}`;
   const ap=$('admin-campus-pill');if(ap)ap.textContent=label;
   const wp=$('worker-campus-pill');if(wp)wp.textContent=label;
@@ -883,7 +995,7 @@ const renderWorkerLb=()=>buildLb('worker-lb');
 // ══════════════════════════════════════
 // WORKER VIEW
 // ══════════════════════════════════════
-function selectWorker(w){currentWorker=w;showView('worker-view');renderWorkerView();}
+function selectWorker(w){currentWorker=w;showView('worker-view');renderWorkerView();checkMotd();}
 
 function renderWorkerView() {
   const w=currentWorker;if(!w)return;
@@ -955,8 +1067,8 @@ function renderWorkerHistory(){
 // TABS
 // ══════════════════════════════════════
 function adminTab(name){
-  ['admin-workers','admin-tasks','admin-leaderboard'].forEach((id,i)=>$(id).classList.toggle('hidden',['workers','tasks','leaderboard'][i]!==name));
-  $('admin-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['workers','tasks','leaderboard'][i]===name));
+  ['admin-workers','admin-tasks','admin-leaderboard','admin-messages'].forEach((id,i)=>$(id).classList.toggle('hidden',['workers','tasks','leaderboard','messages'][i]!==name));
+  $('admin-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['workers','tasks','leaderboard','messages'][i]===name));
 }
 function workerTab(name){
   ['w-tasks','w-history','w-leaderboard'].forEach((id,i)=>$(id).classList.toggle('hidden',['tasks','history','leaderboard'][i]!==name));
@@ -1159,6 +1271,154 @@ async function saveEdit(){
     }
     closeEditModal();await loadData();
   } catch(e){alert('Error saving: '+e.message);}setSyncing(false);
+}
+
+// ══════════════════════════════════════
+// MESSAGES
+// ══════════════════════════════════════
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+function campusMessages() {
+  return messages.filter(m => m.campus === activeCampus).sort((a,b)=>a.show_date<b.show_date?1:-1);
+}
+
+function renderAdminMessages() {
+  const list=$('msg-list'); if(!list)return;
+  list.innerHTML='';
+  const msgs=campusMessages();
+  $('no-msgs-admin').classList.toggle('hidden', msgs.length>0);
+  const today=todayStr();
+  msgs.forEach(m=>{
+    const isToday=m.show_date===today;
+    const isPast=m.show_date<today;
+    const card=document.createElement('div');
+    card.className=`msg-card${isToday?' active-today':m.show_date>today?' scheduled':''}`;
+    // left icon
+    const icon=document.createElement('div');
+    icon.style.cssText='font-size:1.6rem;flex-shrink:0;line-height:1';
+    icon.textContent=m.icon||'📢';
+    card.appendChild(icon);
+    // body
+    const body=document.createElement('div');
+    body.className='msg-card-body';
+    const dateEl=document.createElement('div');
+    dateEl.className='msg-card-date';
+    dateEl.textContent=fmtDate(m.show_date);
+    body.appendChild(dateEl);
+    if(m.title){
+      const t=document.createElement('div');
+      t.style.cssText='font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:.15rem';
+      t.textContent=m.title;
+      body.appendChild(t);
+    }
+    const txt=document.createElement('div');
+    txt.className='msg-card-text';
+    txt.textContent=m.body;
+    body.appendChild(txt);
+    // status badge
+    const status=document.createElement('span');
+    status.className=`msg-card-status ${isToday?'msg-status-today':isPast?'msg-status-past':'msg-status-scheduled'}`;
+    status.textContent=isToday?'📣 Showing today':isPast?'✓ Past':'⏰ Scheduled';
+    body.appendChild(status);
+    card.appendChild(body);
+    // actions
+    const actions=document.createElement('div');
+    actions.className='msg-card-actions';
+    const editBtn=document.createElement('button');
+    editBtn.className='btn btn-ghost btn-xs';
+    editBtn.textContent='✏️';
+    editBtn.title='Edit';
+    editBtn.onclick=()=>openMsgEditModal(m);
+    actions.appendChild(editBtn);
+    const delBtn=document.createElement('button');
+    delBtn.className='btn btn-danger btn-xs';
+    delBtn.textContent='✕';
+    delBtn.title='Delete';
+    delBtn.onclick=()=>deleteMessage(m.id);
+    actions.appendChild(delBtn);
+    card.appendChild(actions);
+    list.appendChild(card);
+  });
+}
+
+async function addMessage() {
+  const date=($('msg-date').value||'').trim();
+  const body=($('msg-body').value||'').trim();
+  if(!date)return alert('Please pick a date for the message.');
+  if(!body)return alert('Please write a message.');
+  const title=($('msg-title').value||'').trim()||null;
+  const icon=($('msg-icon').value||'').trim()||'📢';
+  setSyncing(true);
+  try {
+    await tursoFetch(
+      'INSERT INTO daily_messages (id,campus,show_date,title,body,icon) VALUES (?,?,?,?,?,?)',
+      [uuid(),activeCampus,date,title,body,icon]
+    );
+    $('msg-date').value='';$('msg-title').value='';$('msg-body').value='';$('msg-icon').value='';
+    await loadData();
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+async function deleteMessage(id) {
+  if(!confirm('Delete this message?'))return;
+  setSyncing(true);
+  try{await tursoFetch('DELETE FROM daily_messages WHERE id=?',[id]);await loadData();}
+  catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+function openMsgEditModal(msg) {
+  editingMsgId=msg.id;
+  $('medit-date').value=msg.show_date||'';
+  $('medit-title').value=msg.title||'';
+  $('medit-body').value=msg.body||'';
+  $('medit-icon').value=msg.icon||'📢';
+  $('msg-edit-modal').classList.add('show');
+}
+function closeMsgEditModal(){$('msg-edit-modal').classList.remove('show');editingMsgId=null;}
+
+async function saveMsgEdit() {
+  if(!editingMsgId)return;
+  const date=($('medit-date').value||'').trim();
+  const body=($('medit-body').value||'').trim();
+  if(!date)return alert('Please pick a date.');
+  if(!body)return alert('Please write a message.');
+  setSyncing(true);
+  try {
+    await tursoFetch(
+      'UPDATE daily_messages SET show_date=?,title=?,body=?,icon=? WHERE id=?',
+      [date,($('medit-title').value||'').trim()||null,body,($('medit-icon').value||'').trim()||'📢',editingMsgId]
+    );
+    closeMsgEditModal();await loadData();
+  } catch(e){alert('Error: '+e.message);}
+  setSyncing(false);
+}
+
+// ── MOTD popup for workers ──────────────────────────────────
+function checkMotd() {
+  if(!currentWorker||!activeCampus) return;
+  const today=todayStr();
+  const todayMsg=messages.find(m=>m.campus===activeCampus&&m.show_date===today);
+  if(!todayMsg) return;
+  // Check localStorage to see if this worker already dismissed today
+  const key=`motd_seen_${currentWorker.id}_${today}`;
+  if(localStorage.getItem(key)) return;
+  // Show it
+  currentMotd=todayMsg;
+  $('motd-icon').textContent=todayMsg.icon||'📢';
+  $('motd-title').textContent=todayMsg.title||'Message from your admin';
+  $('motd-body').textContent=todayMsg.body;
+  $('motd-modal').classList.add('show');
+}
+
+function dismissMotd() {
+  if(currentMotd&&currentWorker) {
+    const key=`motd_seen_${currentWorker.id}_${todayStr()}`;
+    localStorage.setItem(key,'1');
+  }
+  $('motd-modal').classList.remove('show');
+  currentMotd=null;
 }
 
 // ══════════════════════════════════════

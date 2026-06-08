@@ -1747,7 +1747,7 @@ async function addUser(role){
   const color=role==='staff'?selectedColorS:selectedColorW;
   setSyncing(true);
   try{
-    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,created_by) VALUES(?,?,?,?,1,?,?,?,?)',[uuid(),name,uname.toLowerCase(),'',1,role,activeCampus,color,currentUser.id]);
+    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,created_by) VALUES(?,?,?,?,1,?,?,?,?)',[uuid(),name,uname.toLowerCase(),'',role,activeCampus,color,currentUser.id]);
     $(`${nameId}`).value='';$(`${unameId}`).value='';await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
@@ -1757,7 +1757,7 @@ async function staffAddWorker(){
   if(!name||!uname)return alert('Name and username are required.');
   setSyncing(true);
   try{
-    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,created_by) VALUES(?,?,?,?,1,?,?,?,?)',[uuid(),name,uname.toLowerCase(),'',1,'student',activeCampus,selectedColorSW,currentUser.id]);
+    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,created_by) VALUES(?,?,?,?,1,?,?,?,?)',[uuid(),name,uname.toLowerCase(),'','student',activeCampus,selectedColorSW,currentUser.id]);
     $('sw-name').value='';$('sw-username').value='';await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }

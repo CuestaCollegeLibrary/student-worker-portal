@@ -1213,6 +1213,8 @@ async function loadData() {
     const migrations=[
       `ALTER TABLE users ADD COLUMN completion_count INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE users ADD COLUMN created_by TEXT`,
+      `ALTER TABLE tasks ADD COLUMN created_by TEXT`,
       `ALTER TABLE tasks ADD COLUMN created_by_role TEXT NOT NULL DEFAULT 'admin'`,
       `ALTER TABLE tasks ADD COLUMN requested_by TEXT`,
       `ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'`,
@@ -1220,6 +1222,7 @@ async function loadData() {
       `ALTER TABLE tasks ADD COLUMN recurrence_day INTEGER`,
       `ALTER TABLE tasks ADD COLUMN slot_config TEXT`,
       `ALTER TABLE tasks ADD COLUMN one_per_worker_day INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE completions ADD COLUMN semester TEXT NOT NULL DEFAULT 'current'`,
       `ALTER TABLE completions ADD COLUMN occurrence_key TEXT NOT NULL DEFAULT 'once'`,
       `ALTER TABLE completions ADD COLUMN slot_index INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE completions ADD COLUMN solo_claimed INTEGER NOT NULL DEFAULT 0`,

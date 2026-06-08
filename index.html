@@ -1209,6 +1209,26 @@ async function loadData() {
       {sql:`CREATE TABLE IF NOT EXISTS daily_messages (id TEXT PRIMARY KEY,campus TEXT NOT NULL DEFAULT 'SLO',show_date TEXT NOT NULL,title TEXT,body TEXT NOT NULL,icon TEXT NOT NULL DEFAULT '📢',created_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(campus,show_date))`},
       {sql:`INSERT OR IGNORE INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color) VALUES('admin-slo','SLO Admin','admin','Cougar007@',0,'admin','SLO','#F4A7B9'),('admin-ncc','NCC Admin','admin','Cougar007@',0,'admin','NCC','#D4B8E0')`},
     ]);
+    // ── Migrations: silently add columns missing in older databases ──
+    const migrations=[
+      `ALTER TABLE users ADD COLUMN completion_count INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE tasks ADD COLUMN created_by_role TEXT NOT NULL DEFAULT 'admin'`,
+      `ALTER TABLE tasks ADD COLUMN requested_by TEXT`,
+      `ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'`,
+      `ALTER TABLE tasks ADD COLUMN recurrence_interval INTEGER`,
+      `ALTER TABLE tasks ADD COLUMN recurrence_day INTEGER`,
+      `ALTER TABLE tasks ADD COLUMN slot_config TEXT`,
+      `ALTER TABLE tasks ADD COLUMN one_per_worker_day INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE completions ADD COLUMN occurrence_key TEXT NOT NULL DEFAULT 'once'`,
+      `ALTER TABLE completions ADD COLUMN slot_index INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE completions ADD COLUMN solo_claimed INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE completions ADD COLUMN override_reason TEXT`,
+      `ALTER TABLE completions ADD COLUMN points_voided INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE completions ADD COLUMN void_reason TEXT`,
+    ];
+    await Promise.allSettled(migrations.map(sql=>tursoFetch(sql)));
+    // ────────────────────────────────────────────────────────────
     const [u,t,c,n,nr,pa,bp,hr,dm]=await Promise.all([
       tursoFetch('SELECT * FROM users ORDER BY role,name'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
@@ -1665,7 +1685,7 @@ function getMyNotifications(){
     if(n.to_user===currentUser.id) return true;
     if(n.to_campus===activeCampus&&(!n.to_role||n.to_role==='all')) return true;
     if(n.to_campus===activeCampus&&n.to_role===currentUser.role) return true;
-    if(n.to_campus===activeCampus&&n.to_role==='students'&&currentUser.role==='student') return true;
+    if(n.to_campus===activeCampus&&n.to_role==='student'&&currentUser.role==='student') return true;
     if(n.to_campus===activeCampus&&n.to_role==='staff'&&(currentUser.role==='staff'||currentUser.role==='admin')) return true;
     return false;
   }).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -1715,8 +1735,9 @@ function buildNotifRow(n){
  
 async function markRead(notifId){
   if(isRead(notifId)) return;
-  try{await tursoFetch('INSERT OR IGNORE INTO notification_reads(id,notification_id,user_id) VALUES(?,?,?)',[uuid(),notifId,currentUser.id]);
-  notifReads.push({id:uuid(),notification_id:notifId,user_id:currentUser.id});}catch{}
+  const rid=uuid();
+  try{await tursoFetch('INSERT OR IGNORE INTO notification_reads(id,notification_id,user_id) VALUES(?,?,?)',[rid,notifId,currentUser.id]);
+  notifReads.push({id:rid,notification_id:notifId,user_id:currentUser.id});}catch{}
 }
  
 // ══════════════════════════════════════════════════════════════
@@ -2042,7 +2063,7 @@ async function addMessage(){
   try{
     await tursoFetch('INSERT INTO daily_messages(id,campus,show_date,title,body,icon,created_by) VALUES(?,?,?,?,?,?,?)',[uuid(),activeCampus,date,($('msg-title').value||'').trim()||null,body,($('msg-icon').value||'').trim()||'📢',currentUser.id]);
     $('msg-date').value='';$('msg-title').value='';$('msg-body').value='';$('msg-icon').value='';await loadData();
-  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+  }catch(e){alert(e.message?.includes('UNIQUE')?'A message is already scheduled for that date. Edit the existing one instead.':'Error: '+e.message);}setSyncing(false);
 }
  
 async function deleteMessage(id){if(!confirm('Delete?'))return;setSyncing(true);try{await tursoFetch('DELETE FROM daily_messages WHERE id=?',[id]);await loadData();}catch(e){alert('Error: '+e.message);}setSyncing(false);}
@@ -2051,7 +2072,7 @@ function openMsgEditModal(msg){editingMsgId=msg.id;$('medit-date').value=msg.sho
 function closeMsgEditModal(){$('msg-edit-modal').classList.remove('show');editingMsgId=null;}
 async function saveMsgEdit(){
   if(!editingMsgId)return;const date=($('medit-date').value||'').trim(),body=($('medit-body').value||'').trim();if(!date||!body)return alert('Date and message required.');
-  setSyncing(true);try{await tursoFetch('UPDATE daily_messages SET show_date=?,title=?,body=?,icon=? WHERE id=?',[date,($('medit-title').value||'').trim()||null,body,($('medit-icon').value||'').trim()||'📢',editingMsgId]);closeMsgEditModal();await loadData();}catch(e){alert('Error: '+e.message);}setSyncing(false);
+  setSyncing(true);try{await tursoFetch('UPDATE daily_messages SET show_date=?,title=?,body=?,icon=? WHERE id=?',[date,($('medit-title').value||'').trim()||null,body,($('medit-icon').value||'').trim()||'📢',editingMsgId]);closeMsgEditModal();await loadData();}catch(e){alert(e.message?.includes('UNIQUE')?'Another message is already scheduled for that date.':'Error: '+e.message);}setSyncing(false);
 }
  
 function onDmTargetChange(){$('dm-user-field').classList.toggle('hidden',$('dm-target').value!=='specific');}
@@ -2061,7 +2082,7 @@ async function sendDirectMessage(){
   const target=$('dm-target').value,body=($('dm-body').value||'').trim();if(!body)return alert('Please write a message.');
   const notif={type:'message',body,icon:'💬',campus:activeCampus};
   if(target==='campus'){notif.to_campus=activeCampus;notif.to_role='all';}
-  else if(target==='students'){notif.to_campus=activeCampus;notif.to_role='students';}
+  else if(target==='students'){notif.to_campus=activeCampus;notif.to_role='student';}
   else if(target==='staff'){notif.to_campus=activeCampus;notif.to_role='staff';}
   else{notif.to_user=$('dm-user').value;if(!notif.to_user)return alert('Select a person.');}
   setSyncing(true);try{await sendNotification(notif);$('dm-body').value='';await loadData();alert('Sent!');}catch(e){alert('Error: '+e.message);}setSyncing(false);
@@ -2071,7 +2092,7 @@ async function staffSendMessage(){
   const target=$('sdm-target').value,body=($('sdm-body').value||'').trim();if(!body)return alert('Please write a message.');
   const notif={type:'message',body,icon:'💬',campus:activeCampus};
   if(target==='campus'){notif.to_campus=activeCampus;notif.to_role='all';}
-  else if(target==='students'){notif.to_campus=activeCampus;notif.to_role='students';}
+  else if(target==='students'){notif.to_campus=activeCampus;notif.to_role='student';}
   else if(target==='admin'){notif.to_campus=activeCampus;notif.to_role='admin';}
   else{notif.to_user=$('sdm-user').value;if(!notif.to_user)return alert('Select a person.');}
   setSyncing(true);try{await sendNotification(notif);$('sdm-body').value='';await loadData();alert('Sent!');}catch(e){alert('Error: '+e.message);}setSyncing(false);

@@ -455,6 +455,55 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               </div>
               <div class="field"><label>Deadline (optional)</label><input class="input" id="t-deadline" type="date"/></div>
 
+              <!-- SLOT 1 -->
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem;display:flex;flex-direction:column;gap:.75rem">
+                <div style="font-weight:700;font-size:.82rem;color:var(--pink-dark)">🌅 Slot 1 (e.g. Morning)</div>
+                <div class="field">
+                  <label>Time window (optional)</label>
+                  <div style="display:flex;gap:.6rem;align-items:center">
+                    <input class="input" id="t-window-start" type="time" style="flex:1"/>
+                    <span style="color:var(--muted);font-size:.85rem;flex-shrink:0">to</span>
+                    <input class="input" id="t-window-end" type="time" style="flex:1"/>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Assign slot 1 to</label>
+                  <div style="display:flex;gap:.5rem;margin-bottom:.4rem">
+                    <button type="button" id="s1-all-btn" onclick="setSlotAssign(1,'all')" style="flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #A8D8EA;background:#EAF6FA;color:#1A4A6B">📢 Everyone</button>
+                    <button type="button" id="s1-one-btn" onclick="setSlotAssign(1,'one')" style="flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)">👤 Specific</button>
+                  </div>
+                  <select class="input hidden" id="t-slot1-worker"><option value="">— Select worker —</option></select>
+                </div>
+              </div>
+
+              <!-- SLOT 2 -->
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem;display:flex;flex-direction:column;gap:.75rem">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="font-weight:700;font-size:.82rem;color:#1A4A6B">🌙 Slot 2 (e.g. Evening)</div>
+                  <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--muted);cursor:pointer">
+                    <input type="checkbox" id="t-slot2-enabled" onchange="toggleSlot2()" style="accent-color:var(--pink);width:14px;height:14px"/> Enable second slot
+                  </label>
+                </div>
+                <div id="slot2-fields" style="display:none;flex-direction:column;gap:.75rem">
+                  <div class="field">
+                    <label>Time window</label>
+                    <div style="display:flex;gap:.6rem;align-items:center">
+                      <input class="input" id="t-window2-start" type="time" style="flex:1"/>
+                      <span style="color:var(--muted);font-size:.85rem;flex-shrink:0">to</span>
+                      <input class="input" id="t-window2-end" type="time" style="flex:1"/>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>Assign slot 2 to</label>
+                    <div style="display:flex;gap:.5rem;margin-bottom:.4rem">
+                      <button type="button" id="s2-all-btn" onclick="setSlotAssign(2,'all')" style="flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #A8D8EA;background:#EAF6FA;color:#1A4A6B">📢 Everyone</button>
+                      <button type="button" id="s2-one-btn" onclick="setSlotAssign(2,'one')" style="flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)">👤 Specific</button>
+                    </div>
+                    <select class="input hidden" id="t-slot2-worker"><option value="">— Select worker —</option></select>
+                  </div>
+                </div>
+              </div>
+
               <!-- TASK TYPE -->
               <div class="field">
                 <label>Task Type</label>
@@ -654,6 +703,42 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         </div>
       </div>
       <div class="field"><label>Deadline</label><input class="input" id="edit-deadline" type="date"/></div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem;display:flex;flex-direction:column;gap:.75rem;margin-bottom:.1rem">
+        <div style="font-weight:700;font-size:.82rem;color:var(--pink-dark)">🌅 Slot 1 time window</div>
+        <div class="field">
+          <div style="display:flex;gap:.6rem;align-items:center">
+            <input class="input" id="edit-window-start" type="time" style="flex:1"/>
+            <span style="color:var(--muted);font-size:.85rem;flex-shrink:0">to</span>
+            <input class="input" id="edit-window-end" type="time" style="flex:1"/>
+          </div>
+          <div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave blank to remove</div>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem;display:flex;flex-direction:column;gap:.75rem">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-weight:700;font-size:.82rem;color:#1A4A6B">🌙 Slot 2</div>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--muted);cursor:pointer">
+            <input type="checkbox" id="edit-slot2-enabled" onchange="toggleEditSlot2()" style="accent-color:var(--pink);width:14px;height:14px"/> Enable
+          </label>
+        </div>
+        <div id="edit-slot2-fields" style="display:none;flex-direction:column;gap:.75rem">
+          <div class="field">
+            <div style="display:flex;gap:.6rem;align-items:center">
+              <input class="input" id="edit-window2-start" type="time" style="flex:1"/>
+              <span style="color:var(--muted);font-size:.85rem;flex-shrink:0">to</span>
+              <input class="input" id="edit-window2-end" type="time" style="flex:1"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Assign slot 2 to</label>
+            <div style="display:flex;gap:.5rem;margin-bottom:.4rem">
+              <button type="button" id="es2-all-btn" onclick="setEditSlotAssign('all')" style="flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #A8D8EA;background:#EAF6FA;color:#1A4A6B">📢 Everyone</button>
+              <button type="button" id="es2-one-btn" onclick="setEditSlotAssign('one')" style="flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)">👤 Specific</button>
+            </div>
+            <select class="input hidden" id="edit-slot2-worker"><option value="">— Select worker —</option></select>
+          </div>
+        </div>
+      </div>
       <div class="field" id="edit-collab-field" style="display:none">
         <label>Required completions</label>
         <input class="input" id="edit-collab-required" type="number" min="2" max="20"/>
@@ -828,48 +913,128 @@ function rowsFromResult(result) {
   });
 }
 
-// ══════════════════════════════════════
-// OCCURRENCE KEY — determines current period for a task
+let slot1Assign='all', slot2Assign='all';
+
+function toggleSlot2(){
+  const enabled=$('t-slot2-enabled')?.checked;
+  const fields=$('slot2-fields');
+  if(fields) fields.style.display=enabled?'flex':'none';
+}
+function toggleEditSlot2(){
+  const enabled=$('edit-slot2-enabled')?.checked;
+  const fields=$('edit-slot2-fields');
+  if(fields) fields.style.display=enabled?'flex':'none';
+}
+
+function setSlotAssign(slot, mode){
+  if(slot===1){
+    slot1Assign=mode;
+    const allBtn=$('s1-all-btn'),oneBtn=$('s1-one-btn'),sel=$('t-slot1-worker');
+    if(mode==='all'){
+      allBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #A8D8EA;background:#EAF6FA;color:#1A4A6B';
+      oneBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)';
+      sel?.classList.add('hidden');
+    } else {
+      allBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)';
+      oneBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #FFEAA0;background:#FFF8E0;color:#7A5500';
+      sel?.classList.remove('hidden');
+    }
+  } else {
+    slot2Assign=mode;
+    const allBtn=$('s2-all-btn'),oneBtn=$('s2-one-btn'),sel=$('t-slot2-worker');
+    if(mode==='all'){
+      allBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #A8D8EA;background:#EAF6FA;color:#1A4A6B';
+      oneBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)';
+      sel?.classList.add('hidden');
+    } else {
+      allBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)';
+      oneBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #FFEAA0;background:#FFF8E0;color:#7A5500';
+      sel?.classList.remove('hidden');
+    }
+  }
+}
+
+let editSlot2Assign='all';
+function setEditSlotAssign(mode){
+  editSlot2Assign=mode;
+  const allBtn=$('es2-all-btn'),oneBtn=$('es2-one-btn'),sel=$('edit-slot2-worker');
+  if(mode==='all'){
+    allBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #A8D8EA;background:#EAF6FA;color:#1A4A6B';
+    oneBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)';
+    sel?.classList.add('hidden');
+  } else {
+    allBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid var(--border2);background:#fff;color:var(--muted)';
+    oneBtn.style.cssText='flex:1;padding:.4rem;font-family:inherit;font-size:.78rem;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #FFEAA0;background:#FFF8E0;color:#7A5500';
+    sel?.classList.remove('hidden');
+  }
+}
+
+// Populate slot worker dropdowns whenever campus workers change
+function populateSlotSelects(){
+  ['t-slot1-worker','t-slot2-worker','edit-slot2-worker'].forEach(id=>{
+    const sel=$(id);if(!sel)return;
+    const prev=sel.value;
+    sel.innerHTML='<option value="">— Select worker —</option>';
+    campusWorkers().forEach(w=>{
+      const o=document.createElement('option');o.value=w.id;o.textContent=w.name;
+      if(w.id===prev)o.selected=true;
+      sel.appendChild(o);
+    });
+  });
+}
+
+
 // This is how we know if a completion counts for "now"
 // ══════════════════════════════════════
-function occurrenceKey(task, now=new Date()) {
+function occurrenceKey(task, now=new Date(), slot=null) {
   const rec = task.recurrence || 'none';
-  if (rec === 'none') return 'once';
-  if (rec === 'daily') {
-    return now.toISOString().slice(0,10); // 'YYYY-MM-DD'
-  }
+  const suffix = slot ? `-${slot}` : '';
+  if (rec === 'none') return `once${suffix}`;
+  if (rec === 'daily') return now.toISOString().slice(0,10) + suffix;
   if (rec === 'weekly') {
-    // Find the most recent occurrence of recurrence_day (0=Sun..6=Sat)
     const targetDay = Number(task.recurrence_day ?? 1);
-    const d = new Date(now);
-    d.setHours(0,0,0,0);
-    const dayOfWeek = d.getDay();
-    const diff = (dayOfWeek - targetDay + 7) % 7;
+    const d = new Date(now); d.setHours(0,0,0,0);
+    const diff = (d.getDay() - targetDay + 7) % 7;
     d.setDate(d.getDate() - diff);
-    return `W-${d.toISOString().slice(0,10)}`; // 'W-YYYY-MM-DD' of that week's reset day
+    return `W-${d.toISOString().slice(0,10)}${suffix}`;
   }
   if (rec === 'monthly') {
     const resetDay = Number(task.recurrence_day ?? 1);
     const y = now.getFullYear(), m = now.getMonth()+1;
-    const dayOfMonth = now.getDate();
-    if (dayOfMonth >= resetDay) {
-      return `M-${y}-${String(m).padStart(2,'0')}`; // current month period
-    } else {
-      // Still in previous month's period
-      const prev = new Date(y, now.getMonth()-1, 1);
-      return `M-${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
-    }
+    if (now.getDate() >= resetDay) return `M-${y}-${String(m).padStart(2,'0')}${suffix}`;
+    const prev = new Date(y, now.getMonth()-1, 1);
+    return `M-${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}${suffix}`;
   }
   if (rec === 'interval') {
     const intervalDays = Number(task.recurrence_interval ?? 7);
-    const created = new Date(task.created_at);
-    created.setHours(0,0,0,0);
+    const created = new Date(task.created_at); created.setHours(0,0,0,0);
     const today = new Date(now); today.setHours(0,0,0,0);
-    const daysSince = Math.floor((today - created) / 86400000);
-    const periodNum = Math.floor(daysSince / intervalDays);
-    return `I-${periodNum}`;
+    const periodNum = Math.floor((today - created) / 86400000 / intervalDays);
+    return `I-${periodNum}${suffix}`;
   }
-  return 'once';
+  return `once${suffix}`;
+}
+
+function fmtTime(t) {
+  if(!t) return '';
+  const [h,m] = t.split(':');
+  const hr = Number(h);
+  return `${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?'AM':'PM'}`;
+}
+
+function isInWindow(task) {
+  if(!task.window_start||!task.window_end) return true; // no restriction
+  const now = new Date();
+  const cur = now.getHours()*60 + now.getMinutes();
+  const [sh,sm] = task.window_start.split(':').map(Number);
+  const [eh,em] = task.window_end.split(':').map(Number);
+  const start = sh*60+sm, end = eh*60+em;
+  return cur >= start && cur <= end;
+}
+
+function windowLabel(task) {
+  if(!task.window_start||!task.window_end) return null;
+  return `${fmtTime(task.window_start)} – ${fmtTime(task.window_end)}`;
 }
 
 function recurrenceLabel(task) {
@@ -925,7 +1090,7 @@ async function loadData() {
       { sql:`CREATE TABLE IF NOT EXISTS daily_messages (id TEXT PRIMARY KEY, campus TEXT NOT NULL DEFAULT 'SLO', show_date TEXT NOT NULL, title TEXT, body TEXT NOT NULL, icon TEXT NOT NULL DEFAULT '📢', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), UNIQUE(campus, show_date))` },
       { sql:`CREATE INDEX IF NOT EXISTS idx_messages_campus_date ON daily_messages(campus, show_date)` },
       { sql:`CREATE TABLE IF NOT EXISTS workers (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar_color TEXT NOT NULL DEFAULT '#F4A7B9', points INTEGER NOT NULL DEFAULT 0, campus TEXT NOT NULL DEFAULT 'SLO', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
-      { sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, points_value INTEGER NOT NULL DEFAULT 10, deadline TEXT, priority TEXT NOT NULL DEFAULT 'medium', task_type TEXT NOT NULL DEFAULT 'everyone', assign_to TEXT, campus TEXT NOT NULL DEFAULT 'SLO', collab_required INTEGER NOT NULL DEFAULT 2, recurrence TEXT NOT NULL DEFAULT 'none', recurrence_interval INTEGER, recurrence_day INTEGER, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
+      { sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, points_value INTEGER NOT NULL DEFAULT 10, deadline TEXT, priority TEXT NOT NULL DEFAULT 'medium', task_type TEXT NOT NULL DEFAULT 'everyone', assign_to TEXT, campus TEXT NOT NULL DEFAULT 'SLO', collab_required INTEGER NOT NULL DEFAULT 2, recurrence TEXT NOT NULL DEFAULT 'none', recurrence_interval INTEGER, recurrence_day INTEGER, window_start TEXT, window_end TEXT, slot2_enabled INTEGER NOT NULL DEFAULT 0, window2_start TEXT, window2_end TEXT, slot2_task_type TEXT NOT NULL DEFAULT 'everyone', slot2_assign_to TEXT, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))` },
       { sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), semester TEXT NOT NULL DEFAULT 'current', occurrence_key TEXT NOT NULL DEFAULT 'once', solo_claimed INTEGER NOT NULL DEFAULT 0, UNIQUE(task_id, worker_id, occurrence_key))` },
       { sql:`CREATE TABLE IF NOT EXISTS semester_resets (id TEXT PRIMARY KEY, reset_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), semester_label TEXT NOT NULL)` },
       { sql:`CREATE TABLE IF NOT EXISTS help_requests (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker_id TEXT NOT NULL, campus TEXT NOT NULL DEFAULT 'SLO', created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), resolved TEXT NOT NULL DEFAULT '0', resolved_at TEXT)` },
@@ -949,6 +1114,13 @@ async function loadData() {
       collab_required:Number(r.collab_required)||2,
       recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,
       recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,
+      window_start:r.window_start||null,
+      window_end:r.window_end||null,
+      slot2_enabled:r.slot2_enabled==='1'||r.slot2_enabled===1||r.slot2_enabled===true,
+      window2_start:r.window2_start||null,
+      window2_end:r.window2_end||null,
+      slot2_task_type:r.slot2_task_type||'everyone',
+      slot2_assign_to:r.slot2_assign_to||null,
     }));
     completions      = c.map(r=>({...r, solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1}));
     messages         = m;
@@ -1063,15 +1235,32 @@ function renderAssignSelect() {
     if(w.id===prev)o.selected=true;
     sel.appendChild(o);
   });
+  populateSlotSelects();
 }
 
 // ══════════════════════════════════════
 // TASK ROW BUILDER
 // ══════════════════════════════════════
-function buildTaskRow(task, isAdmin) {
+function buildTaskRow(task, isAdmin, slot=null) {
   const workerMap=Object.fromEntries(workers.map(w=>[w.id,w]));
-  const oKey=occurrenceKey(task);
+  // slot-specific overrides
+  const effectiveWindowStart = slot==='slot2' ? task.window2_start : task.window_start;
+  const effectiveWindowEnd   = slot==='slot2' ? task.window2_end   : task.window_end;
+  const effectiveAssignTo    = slot==='slot2' ? task.slot2_assign_to : task.assign_to;
+  const effectiveTaskType    = slot==='slot2' ? task.slot2_task_type : task.task_type;
+  const slotLabel = slot==='slot1' ? '🌅 Morning' : slot==='slot2' ? '🌙 Evening' : null;
+
+  const oKey=occurrenceKey(task,new Date(),slot);
   const recLabel=recurrenceLabel(task);
+  const inWindow = (()=>{
+    if(!effectiveWindowStart||!effectiveWindowEnd) return true;
+    const now=new Date(), cur=now.getHours()*60+now.getMinutes();
+    const [sh,sm]=effectiveWindowStart.split(':').map(Number);
+    const [eh,em]=effectiveWindowEnd.split(':').map(Number);
+    return cur>=sh*60+sm && cur<=eh*60+em;
+  })();
+  const winLabel = effectiveWindowStart&&effectiveWindowEnd
+    ? `${fmtTime(effectiveWindowStart)} – ${fmtTime(effectiveWindowEnd)}` : null;
 
   // completions for current occurrence
   const occComps=completions.filter(c=>c.task_id===task.id&&c.occurrence_key===oKey);
@@ -1085,13 +1274,13 @@ function buildTaskRow(task, isAdmin) {
   const collabFull=task.task_type==='collaborative'&&(collabCount>=collabRequired||soloLocked);
 
   // everyone: locked if anyone completed this occurrence
-  const everyoneLocked=task.task_type==='everyone'&&occComps.length>0&&!myDone;
+  const everyoneLocked=effectiveTaskType==='everyone'&&occComps.length>0&&!myDone;
 
   const overdue=isPast(task.deadline)&&!myDone;
   const isLocked=everyoneLocked||collabFull;
 
   const row=document.createElement('div');
-  row.className=`task-row${myDone&&!isAdmin?' done':''}${overdue?' overdue':''}${isLocked&&!isAdmin?' locked':''}`;
+  row.className=`task-row${myDone&&!isAdmin?' done':''}${overdue?' overdue':''}${isLocked&&!isAdmin?' locked':''}${!isAdmin&&!inWindow&&!myDone?' locked':''}`;
 
   // left col: badges + main info
   const left=document.createElement('div');
@@ -1107,10 +1296,20 @@ function buildTaskRow(task, isAdmin) {
   // type badges
   if(task.task_type==='collaborative'){
     const b=document.createElement('span');b.className='badge badge-collab';b.textContent='🤝 Collab';titleRow.appendChild(b);
-  } else if(task.task_type==='everyone'){
+  } else if(effectiveTaskType==='everyone'){
     const b=document.createElement('span');b.className='badge badge-everyone';b.textContent='📢 Everyone';titleRow.appendChild(b);
   }
+  if(slotLabel){const b=document.createElement('span');b.className='badge';b.style.cssText='background:#FEF0F3;color:var(--pink-dark);border:1px solid var(--pink)';b.textContent=slotLabel;titleRow.appendChild(b);}
   if(recLabel){const b=document.createElement('span');b.className='badge badge-rec';b.textContent=recLabel;titleRow.appendChild(b);}
+  if(winLabel){
+    const b=document.createElement('span');
+    b.className='badge';
+    b.style.cssText=inWindow
+      ?'background:#EAF8F0;color:#1A6B44;border:1px solid #A0D9BB'
+      :'background:#FFF8E0;color:#7A5500;border:1px solid #FFEAA0';
+    b.textContent=`🕐 ${winLabel}`;
+    titleRow.appendChild(b);
+  }
 
   left.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;left.appendChild(d);}
@@ -1125,7 +1324,9 @@ function buildTaskRow(task, isAdmin) {
   }
   // assign label
   if(task.task_type==='specific'&&task.assign_to){
-    const al=document.createElement('span');al.className='task-assign';al.textContent=`→ ${workerMap[task.assign_to]?.name||'?'}`;meta.appendChild(al);
+    if(effectiveTaskType==='specific'&&effectiveAssignTo){
+      const al=document.createElement('span');al.className='task-assign';al.textContent=`→ ${workerMap[effectiveAssignTo]?.name||'?'}`;meta.appendChild(al);
+    }
   }
   if(task.task_type==='collaborative'){
     const cp=document.createElement('span');cp.className='collab-progress';
@@ -1159,12 +1360,18 @@ function buildTaskRow(task, isAdmin) {
       const lk=document.createElement('span');lk.style.cssText='color:var(--faint);font-size:.78rem';
       lk.textContent=everyoneLocked?'✓ Completed by team':'🔒 Full';
       actions.appendChild(lk);
+    } else if(!isAdmin&&!inWindow) {
+      // outside time window
+      const wl=document.createElement('div');
+      wl.style.cssText='font-size:.78rem;color:#7A5500;font-weight:600;background:#FFF8E0;border:1px solid #FFEAA0;border-radius:8px;padding:.35rem .7rem;text-align:center';
+      wl.textContent=`🕐 Available ${fmtTime(task.window_start)} – ${fmtTime(task.window_end)}`;
+      actions.appendChild(wl);
     } else {
       // complete button
       const btn=document.createElement('button');btn.className='btn btn-success btn-sm';btn.textContent='✓ Complete';
-      btn.onclick=()=>completeTask(task,false);actions.appendChild(btn);
+      btn.onclick=()=>completeTask(task,false,slot);actions.appendChild(btn);
       // specific task: decline + help buttons
-      if(task.task_type==='specific'&&String(task.assign_to).trim()===String(currentWorker?.id).trim()){
+      if(effectiveTaskType==='specific'&&String(effectiveAssignTo).trim()===String(currentWorker?.id).trim()){
         // check if already requested help
         const alreadyHelp=helpRequests.some(h=>h.task_id===task.id&&h.worker_id===currentWorker?.id&&String(h.resolved)==='0');
         if(!alreadyHelp){
@@ -1193,7 +1400,7 @@ function buildTaskRow(task, isAdmin) {
         soloWrap.onclick=(e)=>{
           if(e.target.tagName==='INPUT'&&e.target.checked){
             if(confirm('Mark as solo completion? This will lock the task and prevent others from claiming points.')) {
-              completeTask(task,true);
+              completeTask(task,true,slot);
             } else { e.target.checked=false; }
           }
         };
@@ -1275,18 +1482,27 @@ function renderWorkerView() {
 }
 
 function myVisibleTasks(){
-  return tasks.filter(t=>
-    (t.task_type==='everyone'&&t.campus===activeCampus)||
-    (t.task_type==='collaborative'&&t.campus===activeCampus)||
-    (t.task_type==='specific'&&String(t.assign_to).trim()===String(currentWorker?.id).trim())
-  );
+  // Returns array of {task, slot} objects — slot2-enabled tasks appear twice
+  const result=[];
+  tasks.forEach(t=>{
+    const slot1visible=(t.task_type==='everyone'&&t.campus===activeCampus)||
+      (t.task_type==='collaborative'&&t.campus===activeCampus)||
+      (t.task_type==='specific'&&String(t.assign_to).trim()===String(currentWorker?.id).trim());
+    if(slot1visible) result.push({task:t, slot:t.slot2_enabled?'slot1':null});
+    if(t.slot2_enabled){
+      const slot2visible=(t.slot2_task_type==='everyone'&&t.campus===activeCampus)||
+        (t.slot2_task_type==='specific'&&String(t.slot2_assign_to).trim()===String(currentWorker?.id).trim());
+      if(slot2visible) result.push({task:t, slot:'slot2'});
+    }
+  });
+  return result;
 }
 
 function updateWorkerTabLabel(){
-  const pending=myVisibleTasks().filter(t=>{
-    const oKey=occurrenceKey(t);
-    const myComp=completions.find(c=>c.task_id===t.id&&c.worker_id===currentWorker?.id&&c.occurrence_key===oKey);
-    return !myComp;
+  const visible=myVisibleTasks();
+  const pending=visible.filter(({task,slot})=>{
+    const oKey=occurrenceKey(task,new Date(),slot);
+    return !completions.some(c=>c.task_id===task.id&&c.worker_id===currentWorker?.id&&c.occurrence_key===oKey);
   });
   const tab=$('worker-tabs')?.querySelectorAll('.tab')?.[0];
   if(tab)tab.textContent=`📋 My Tasks (${pending.length})`;
@@ -1295,9 +1511,9 @@ function updateWorkerTabLabel(){
 function renderWorkerTasks(){
   const list=$('worker-task-list');if(!list)return;
   list.innerHTML='';
-  const mine=myVisibleTasks();
-  if(!mine.length){list.innerHTML='<div class="empty"><div class="icon">🎉</div><p>All caught up! No tasks assigned yet.</p></div>';return;}
-  mine.forEach(t=>list.appendChild(buildTaskRow(t,false)));
+  const visible=myVisibleTasks();
+  if(!visible.length){list.innerHTML='<div class="empty"><div class="icon">🎉</div><p>All caught up! No tasks assigned yet.</p></div>';return;}
+  visible.forEach(({task,slot})=>list.appendChild(buildTaskRow(task,false,slot)));
 }
 
 function renderWorkerHistory(){
@@ -1451,17 +1667,33 @@ async function addTask(){
   const rec=$('t-recurrence').value;
   const recDay = rec==='weekly'?Number($('t-rec-weekday').value):rec==='monthly'?Number($('t-rec-monthday').value):null;
   const recInt = rec==='interval'?Number($('t-rec-interval').value):null;
+  const slot2En=$('t-slot2-enabled')?.checked||false;
+  const s1worker=slot1Assign==='one'?($('t-slot1-worker')?.value||null):null;
+  const s2worker=slot2En&&slot2Assign==='one'?($('t-slot2-worker')?.value||null):null;
+  const s1type=slot1Assign==='all'?taskType:('specific');
+  // for slot1 specific, use the slot1 worker; override assign_to
+  const mainAssignTo = s1type==='specific'? s1worker : (taskType==='specific'?$('t-assign-select').value:null);
   setSyncing(true);
   try {
     await tursoFetch(
-      'INSERT INTO tasks (id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,recurrence,recurrence_interval,recurrence_day) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO tasks (id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,recurrence,recurrence_interval,recurrence_day,window_start,window_end,slot2_enabled,window2_start,window2_end,slot2_task_type,slot2_assign_to) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [uuid(),title,($('t-desc').value||'').trim()||null,Number($('t-pts').value)||10,
        $('t-deadline').value||null,$('t-priority').value,taskType,
        taskType==='specific'?$('t-assign-select').value:null,
        activeCampus,Number($('t-collab-required').value)||2,
-       rec,recInt,recDay]
+       rec,recInt,recDay,
+       $('t-window-start').value||null,$('t-window-end').value||null,
+       slot2En?1:0,
+       slot2En?($('t-window2-start').value||null):null,
+       slot2En?($('t-window2-end').value||null):null,
+       slot2En?(slot2Assign==='all'?'everyone':'specific'):'everyone',
+       slot2En?s2worker:null]
     );
     $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';
+    $('t-window-start').value='';$('t-window-end').value='';
+    if($('t-slot2-enabled')){$('t-slot2-enabled').checked=false;toggleSlot2();}
+    if($('t-window2-start'))$('t-window2-start').value='';
+    if($('t-window2-end'))$('t-window2-end').value='';
     $('t-priority').value='medium';$('t-recurrence').value='none';
     onRecurrenceChange();setTaskType('everyone');await loadData();
   } catch(e){alert('Error: '+e.message);}setSyncing(false);
@@ -1474,9 +1706,9 @@ async function deleteTask(id){
   catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
 
-async function completeTask(task,soloClai){
+async function completeTask(task,soloClai,slot=null){
   if(!currentWorker)return;
-  const oKey=occurrenceKey(task);
+  const oKey=occurrenceKey(task,new Date(),slot);
   setSyncing(true);
   try {
     await tursoBatch([
@@ -1538,6 +1770,15 @@ function openEditModal(task){
   $('edit-pts').value=task.points_value||10;
   $('edit-priority').value=task.priority||'medium';
   $('edit-deadline').value=task.deadline||'';
+  $('edit-window-start').value=task.window_start||'';
+  $('edit-window-end').value=task.window_end||'';
+  const slot2en=!!task.slot2_enabled;
+  if($('edit-slot2-enabled')){$('edit-slot2-enabled').checked=slot2en;toggleEditSlot2();}
+  if($('edit-window2-start'))$('edit-window2-start').value=task.window2_start||'';
+  if($('edit-window2-end'))$('edit-window2-end').value=task.window2_end||'';
+  editSlot2Assign=task.slot2_task_type==='specific'?'one':'all';
+  setEditSlotAssign(editSlot2Assign);
+  if($('edit-slot2-worker'))$('edit-slot2-worker').value=task.slot2_assign_to||'';
   $('edit-recurrence').value=task.recurrence||'none';
   $('edit-rec-weekday').value=task.recurrence_day??1;
   $('edit-rec-monthday').value=task.recurrence_day??1;
@@ -1557,19 +1798,25 @@ async function saveEdit(){
   const recInt=rec==='interval'?Number($('edit-rec-interval-val').value):null;
   setSyncing(true);
   try {
-    // 1. Update task
+    const slot2en=$('edit-slot2-enabled')?.checked||false;
+    const s2worker=slot2en&&editSlot2Assign==='one'?($('edit-slot2-worker')?.value||null):null;
     await tursoFetch(
-      'UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=? WHERE id=?',
+      'UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=?,window_start=?,window_end=?,slot2_enabled=?,window2_start=?,window2_end=?,slot2_task_type=?,slot2_assign_to=? WHERE id=?',
       [($('edit-title').value||'').trim(),($('edit-desc').value||'').trim()||null,
        newPts,$('edit-deadline').value||null,$('edit-priority').value,
-       Number($('edit-collab-required').value)||2,rec,recInt,recDay,editingTaskId]
+       Number($('edit-collab-required').value)||2,rec,recInt,recDay,
+       $('edit-window-start').value||null,$('edit-window-end').value||null,
+       slot2en?1:0,
+       slot2en?($('edit-window2-start')?.value||null):null,
+       slot2en?($('edit-window2-end')?.value||null):null,
+       slot2en?(editSlot2Assign==='all'?'everyone':'specific'):'everyone',
+       slot2en?s2worker:null,
+       editingTaskId]
     );
-    // 2. Find old points_value from local state
     const oldTask=tasks.find(t=>t.id===editingTaskId);
     const oldPts=oldTask?.points_value||10;
     const diff=newPts-oldPts;
     if(diff!==0){
-      // 3. Retroactively adjust every worker who completed this task
       const affected=completions.filter(c=>c.task_id===editingTaskId);
       const workerAdjust={};
       affected.forEach(c=>{ workerAdjust[c.worker_id]=(workerAdjust[c.worker_id]||0)+diff; });

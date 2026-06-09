@@ -651,7 +651,8 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <div class="tabs" id="staff-tabs">
         <button class="tab active" onclick="staffTab('mytasks')">📋 My Tasks</button>
         <button class="tab" onclick="staffTab('teamtasks')">🗂️ Team Tasks</button>
-        <button class="tab" onclick="staffTab('workers')">👤 Student Workers</button>
+        <button class="tab" onclick="staffTab('team')">👥 Team</button>
+        <button class="tab" onclick="staffTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="staffTab('messages')">💌 Messages</button>
         <button class="tab" id="staff-notif-tab" onclick="staffTab('notifications')">🔔 Notifications</button>
       </div>
@@ -679,14 +680,11 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                       <option value="self">🙋 Myself</option>
                     </optgroup>
                     <optgroup label="── Groups ──">
-                      <option value="group_all_staff">🗂️ All Staff &amp; Admin</option>
                       <option value="group_all_students">🎓 All Student Workers</option>
                       <option value="group_everyone">📢 Everyone (whole campus)</option>
                     </optgroup>
                     <optgroup label="── Individual ──">
                       <option value="student">👤 Specific Student</option>
-                      <option value="peer">👤 Specific Staff / Admin</option>
-                      <option value="request">📨 Request from Staff/Admin</option>
                     </optgroup>
                   </select>
                 </div>
@@ -743,14 +741,11 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                   <label>Assign to</label>
                   <select class="input" id="st2-assign-type" onchange="onStaff2AssignTypeChange()">
                     <optgroup label="── Groups ──">
-                      <option value="group_all_staff">🗂️ All Staff &amp; Admin</option>
                       <option value="group_all_students">🎓 All Student Workers</option>
                       <option value="group_everyone">📢 Everyone (whole campus)</option>
                     </optgroup>
                     <optgroup label="── Individual ──">
                       <option value="student">👤 Specific Student</option>
-                      <option value="peer">👤 Specific Staff / Admin</option>
-                      <option value="request">📨 Request from Staff/Admin</option>
                     </optgroup>
                   </select>
                 </div>
@@ -782,12 +777,16 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         </div>
       </div>
 
-      <!-- STAFF WORKERS TAB -->
-      <div id="staff-workers" class="hidden">
+      <!-- STAFF TEAM TAB (mirrors admin) -->
+      <div id="staff-team" class="hidden">
         <div class="two-col">
           <div>
-            <h2 class="section-title">Student Workers — <span id="staff-workers-label" style="color:var(--campus)"></span></h2>
+            <h2 class="section-title">Team — <span id="staff-workers-label" style="color:var(--campus)"></span></h2>
             <div id="staff-pitch-banner" class="alert-banner info hidden"><div class="alert-icon">⭐</div><div class="alert-body"><div class="alert-title">Bonus Pitches Awaiting Review</div><div id="staff-pitch-items"></div></div></div>
+            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--sky-dark);margin-bottom:.6rem">🗂️ Staff</h3>
+            <div id="staff-peer-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
+            <p class="muted hidden" id="no-staff-peers" style="font-size:.88rem;margin-bottom:.75rem">No other staff members.</p>
+            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.6rem;margin-top:1.5rem">🎓 Student Workers</h3>
             <div id="staff-worker-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
             <p class="muted hidden" id="no-staff-workers" style="font-size:.88rem;margin-top:.75rem">No student workers yet.</p>
           </div>
@@ -797,7 +796,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               <div class="form-grid">
                 <div class="field"><label>Name</label><input class="input" id="sw-name" placeholder="Full name"/></div>
                 <div class="field"><label>Username</label><input class="input" id="sw-username" placeholder="Login username"/></div>
-                <div class="field"><label>Weekly Hours *</label><input class="input" id="sw-hours" type="number" min="1" max="40" placeholder="e.g. 16"/><div style="color:var(--faint);font-size:.74rem;margin-top:.25rem">Used to fairly scale task points</div></div>
+                <div class="field"><label>Weekly Hours *</label><input class="input" id="sw-hours" type="number" min="1" max="40" placeholder="e.g. 16"/><div style="color:var(--faint);font-size:.74rem;margin-top:.25rem">Used to calculate pts/hr rate</div></div>
                 <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-sw"></div></div>
                 <button class="btn btn-primary" onclick="staffAddWorker()">Add Student Worker</button>
               </div>
@@ -805,10 +804,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
           </div>
         </div>
       </div>
- 
-      <!-- STAFF TASKS TAB -->
-      <!-- Staff leaderboard removed — only students compete -->
-      <div id="staff-leaderboard" class="hidden" style="display:none!important"></div>
+
+      <!-- STAFF LEADERBOARD -->
+      <div id="staff-leaderboard" class="hidden">
+        <h2 class="section-title">Leaderboard — <span id="staff-lb-label" style="color:var(--campus)"></span></h2>
+        <p class="muted" style="font-size:.84rem;margin-bottom:1.25rem">Ranked by points earned per hour worked.</p>
+        <div style="max-width:460px"><div class="card" id="staff-lb"></div></div>
+      </div>
  
       <!-- STAFF MESSAGES -->
       <div id="staff-messages" class="hidden">
@@ -1295,11 +1297,12 @@ function adminTab(name){
   if(name==='teamtasks') renderAdminTeamTasks();
 }
 function staffTab(name){
-  const tabs=['mytasks','teamtasks','workers','messages','notifications'];
+  const tabs=['mytasks','teamtasks','team','leaderboard','messages','notifications'];
   tabs.forEach(t=>$(`staff-${t}`).classList.toggle('hidden',t!==name));
   $('staff-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='mytasks') renderStaffMyTasks();
   if(name==='teamtasks') renderStaffTeamTasks();
+  if(name==='leaderboard') renderStaffLb();
   if(name==='notifications') renderStaffNotifications();
 }
 function studentTab(name){
@@ -1439,7 +1442,7 @@ function renderAll(){
     renderPitchBanner('admin');renderHelpBanner('admin');renderAllPitches();populateAssignSelects();
   } else if(currentUser.role==='staff'){
     renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();renderStaffTasks();
-    renderStaffMessages();renderPitchBanner('staff');renderHelpBanner('staff');populateAssignSelects();
+    renderStaffLb();renderStaffMessages();renderPitchBanner('staff');renderHelpBanner('staff');populateAssignSelects();
   } else {
     renderStudentHero();renderStudentTasks();renderStudentHistory();renderStudentLb();renderStudentPitches();
   }
@@ -1474,6 +1477,25 @@ function renderUserLists(){
     const lbl=$('workers-campus-label');if(lbl)lbl.textContent=CAMPUS_LABELS[activeCampus]||'';
     const d=$('w-campus-display');if(d)d.textContent=`${CAMPUS_ICONS[activeCampus]||''} ${CAMPUS_LABELS[activeCampus]||''}`;
   } else {
+    // Staff sees fellow staff (read-only, no delete) + students (manageable)
+    const peers=campusUsers('staff').filter(u=>u.id!==currentUser.id);
+    const peerList=$('staff-peer-list');
+    if(peerList){
+      peerList.innerHTML='';
+      const noPeers=$('no-staff-peers');if(noPeers)noPeers.classList.toggle('hidden',peers.length>0);
+      peers.forEach(u=>{
+        const card=document.createElement('div');card.className='user-card';
+        card.style.cursor='default';
+        card.appendChild(avatarEl(u,'avatar-md'));
+        const info=document.createElement('div');info.className='user-card-info';
+        info.innerHTML=`<div class="user-card-name">${u.name}</div><div class="user-card-sub">@${u.username} · Staff</div>`;
+        card.appendChild(info);
+        const ct=document.createElement('div');ct.className='user-card-pts';
+        ct.innerHTML=`<div class="num">${u.completion_count}</div><div class="lbl">done</div>`;
+        card.appendChild(ct);
+        peerList.appendChild(card);
+      });
+    }
     renderList('staff-worker-list','no-staff-workers','staff-workers-label',campusUsers('student'),true);
     const sl=$('staff-workers-label');if(sl)sl.textContent=CAMPUS_LABELS[activeCampus]||'';
   }
@@ -1797,7 +1819,10 @@ function renderStaffTasks(){
   ct.forEach(t=>buildTaskRows(t,true).forEach(r=>list.appendChild(r)));
 }
  
-function renderStaffLb(){buildLb('staff-lb',campusUsers('student'));const l=$('staff-lb-label');if(l)l.textContent=CAMPUS_LABELS[activeCampus]||'';}
+function renderStaffLb(){
+  buildLb('staff-lb',campusUsers('student'));
+  const l=$('staff-lb-label');if(l)l.textContent=CAMPUS_LABELS[activeCampus]||'';
+}
  
 function renderStaffMessages(){
   const list=$('staff-msg-list');if(!list)return;list.innerHTML='';

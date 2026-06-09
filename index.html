@@ -497,8 +497,12 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
           <div>
             <h2 class="section-title">Tasks — <span id="tasks-campus-label" style="color:var(--campus)"></span></h2>
             <div id="help-banner" class="alert-banner warn hidden"><div class="alert-icon">🆘</div><div class="alert-body"><div class="alert-title">Help Requested</div><div id="help-items"></div></div></div>
-            <div class="task-list" id="admin-task-list"></div>
-            <p class="muted hidden" id="no-tasks-admin" style="font-size:.88rem;margin-top:.75rem">No tasks yet.</p>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem;margin-top:.25rem">Staff & Admin Tasks</h3>
+            <div class="task-list" id="admin-task-list-peer"></div>
+            <p class="muted hidden" id="no-tasks-admin-peer" style="font-size:.88rem;margin-top:.5rem">No staff/admin tasks yet.</p>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--muted);margin-bottom:.75rem;margin-top:1.5rem">Delegated to Student Workers</h3>
+            <div class="task-list" id="admin-task-list-student"></div>
+            <p class="muted hidden" id="no-tasks-admin-student" style="font-size:.88rem;margin-top:.5rem">No student worker tasks yet.</p>
           </div>
           <div class="sticky-panel">
             <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
@@ -520,6 +524,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                     <option value="specific">👤 Specific Person</option>
                     <option value="collaborative">🤝 Collaborative</option>
                   </select>
+                </div>
+                <div class="field hidden" id="t-assign-group-field">
+                  <label>Assign to group</label>
+                  <div class="type-toggle" id="t-assign-group-toggle">
+                    <button type="button" class="type-btn active" id="t-group-staff" onclick="setAdminAssignGroup('staff')">🗂️ Staff</button>
+                    <button type="button" class="type-btn" id="t-group-student" onclick="setAdminAssignGroup('student')">🎓 Student Workers</button>
+                  </div>
                 </div>
                 <div class="field hidden" id="t-assign-user-field">
                   <label>Select person</label>
@@ -644,6 +655,9 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <h2 class="section-title">My Tasks</h2>
         <div class="task-list" id="staff-my-tasks"></div>
         <p class="muted hidden" id="no-staff-tasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned to you.</p>
+        <h2 class="section-title" style="margin-top:1.75rem">Delegated to Student Workers</h2>
+        <div class="task-list" id="staff-delegated-tasks"></div>
+        <p class="muted hidden" id="no-staff-delegated" style="font-size:.88rem;margin-top:.5rem">No delegated tasks.</p>
       </div>
  
       <!-- STAFF WORKERS TAB -->
@@ -1380,7 +1394,9 @@ function renderList(listId,emptyId,labelId,userArr,showPts){
 function populateAssignSelects(){
   const students=campusUsers('student'),staff=campusUsers('staff'),admins=campusUsers('admin');
   const all=[...admins,...staff,...students];
-  [['t-assign-user',all],['st-assign-user',students],['dm-user',all],['sdm-user',[...admins,...staff,...students]]].forEach(([id,pool])=>{
+  // Admin task user select is populated on demand by populateAdminAssignUser()
+  populateAdminAssignUser(adminAssignGroup);
+  [['st-assign-user',students],['dm-user',all],['sdm-user',[...admins,...staff,...students]]].forEach(([id,pool])=>{
     const sel=$(id);if(!sel)return;const prev=sel.value;sel.innerHTML='<option value="">— Select —</option>';
     pool.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===prev)o.selected=true;sel.appendChild(o);});
   });
@@ -1476,10 +1492,30 @@ function buildTaskRows(task,isAdmin){
 // ADMIN RENDER
 // ══════════════════════════════════════════════════════════════
 function renderAdminTasks(){
-  const list=$('admin-task-list');if(!list)return;list.innerHTML='';
-  const ct=campusTasks();$('no-tasks-admin').classList.toggle('hidden',ct.length>0);
+  const peerList=$('admin-task-list-peer'),stuList=$('admin-task-list-student');
+  if(!peerList||!stuList)return;
+  peerList.innerHTML='';stuList.innerHTML='';
   $('tasks-campus-label').textContent=CAMPUS_LABELS[activeCampus]||'';
-  ct.forEach(t=>buildTaskRows(t,true).forEach(r=>list.appendChild(r)));
+  const ct=campusTasks();
+  const studentIds=new Set(campusUsers('student').map(u=>u.id));
+  // A task is "delegated to students" if assign_to is a student, OR task_type=everyone and created_by_role='admin'/'staff' for student-facing work
+  // We use assign_to: if it points to a student → delegated; if it points to staff/admin or is null (everyone/collab) → peer
+  const peerTasks=[], stuTasks=[];
+  ct.forEach(t=>{
+    if(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to)){
+      stuTasks.push(t);
+    } else if(t.task_type==='everyone'||t.task_type==='collaborative'){
+      // "everyone" tasks go to peer section (admins/staff see them too); students also see them but that's their view
+      peerTasks.push(t);
+    } else {
+      // specific → staff/admin, or null assign_to
+      peerTasks.push(t);
+    }
+  });
+  $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
+  $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
+  peerTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>peerList.appendChild(r)));
+  stuTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>stuList.appendChild(r)));
 }
 function renderAdminLb(){buildLb('admin-lb',campusUsers('student'));const l=$('lb-campus-label');if(l)l.textContent=CAMPUS_LABELS[activeCampus]||'';}
  
@@ -1565,10 +1601,22 @@ function renderStaffHero(){
 }
  
 function renderStaffMyTasks(){
-  const list=$('staff-my-tasks');if(!list)return;list.innerHTML='';
-  const mine=tasks.filter(t=>t.campus===activeCampus&&(t.assign_to===currentUser.id||t.task_type==='everyone'));
+  const list=$('staff-my-tasks'),delList=$('staff-delegated-tasks');
+  if(!list)return;list.innerHTML='';if(delList)delList.innerHTML='';
+  const studentIds=new Set(campusUsers('student').map(u=>u.id));
+  // My tasks: assigned to me specifically, or everyone tasks (peer-level)
+  const mine=tasks.filter(t=>t.campus===activeCampus&&(
+    (t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id))||
+    (t.task_type==='everyone')||
+    (t.task_type==='collaborative')
+  )&&!(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to)));
+  // Delegated: tasks this staff member created that are assigned to students
+  const delegated=tasks.filter(t=>t.campus===activeCampus&&t.created_by===currentUser.id&&
+    t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to));
   $('no-staff-tasks').classList.toggle('hidden',mine.length>0);
+  if($('no-staff-delegated'))$('no-staff-delegated').classList.toggle('hidden',delegated.length>0);
   mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
+  if(delList) delegated.forEach(t=>buildTaskRows(t,true).forEach(r=>delList.appendChild(r)));
 }
  
 function renderStaffTasks(){
@@ -1803,7 +1851,27 @@ function triggerPasswordReset(){if(profileUser)forcePasswordReset(profileUser.id
 // ══════════════════════════════════════════════════════════════
 // CRUD — TASKS
 // ══════════════════════════════════════════════════════════════
-function onAssignTypeChange(){const v=$('t-assign-type').value;$('t-assign-user-field').classList.toggle('hidden',v==='everyone');$('t-collab-field').classList.toggle('hidden',v!=='collaborative');}
+let adminAssignGroup='staff'; // tracks which group admin is targeting for specific assignment
+function onAssignTypeChange(){
+  const v=$('t-assign-type').value;
+  const isSpecific=v==='specific';
+  $('t-assign-group-field').classList.toggle('hidden',!isSpecific);
+  $('t-assign-user-field').classList.toggle('hidden',!isSpecific);
+  $('t-collab-field').classList.toggle('hidden',v!=='collaborative');
+  if(isSpecific) populateAdminAssignUser(adminAssignGroup);
+}
+function setAdminAssignGroup(group){
+  adminAssignGroup=group;
+  $('t-group-staff').classList.toggle('active',group==='staff');
+  $('t-group-student').classList.toggle('active',group==='student');
+  populateAdminAssignUser(group);
+}
+function populateAdminAssignUser(group){
+  const sel=$('t-assign-user');if(!sel)return;
+  const pool=group==='staff'?[...campusUsers('admin'),...campusUsers('staff')]:campusUsers('student');
+  const prev=sel.value;sel.innerHTML='<option value="">— Select —</option>';
+  pool.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===prev)o.selected=true;sel.appendChild(o);});
+}
 function onRecurrenceChange(){const v=$('t-recurrence').value;$('rec-weekly-opts').classList.toggle('hidden',v!=='weekly');$('rec-monthly-opts').classList.toggle('hidden',v!=='monthly');$('rec-interval-opts').classList.toggle('hidden',v!=='interval');}
 function onStaffAssignTypeChange(){const v=$('st-assign-type').value;$('st-assign-user-field').classList.toggle('hidden',!['specific','request'].includes(v));}
 function onStaffRecurrenceChange(){const v=$('st-recurrence').value;$('st-rec-weekly').classList.toggle('hidden',v!=='weekly');$('st-rec-monthly').classList.toggle('hidden',v!=='monthly');$('st-rec-interval').classList.toggle('hidden',v!=='interval');}

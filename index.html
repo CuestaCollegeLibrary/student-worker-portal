@@ -433,8 +433,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <div class="tabs" id="admin-tabs">
         <button class="tab active" onclick="adminTab('workers')">👤 Team</button>
         <button class="tab" onclick="adminTab('staff')">🗂️ Staff</button>
-        <button class="tab" onclick="adminTab('mytasks')">📋 My Tasks</button>
-        <button class="tab" onclick="adminTab('tasks')">🗂️ Team Tasks</button>
+        <button class="tab" onclick="adminTab('tasks')">📋 Tasks</button>
         <button class="tab" onclick="adminTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="adminTab('messages')">💌 Messages</button>
         <button class="tab" id="admin-notif-tab" onclick="adminTab('notifications')">🔔 Notifications</button>
@@ -492,14 +491,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         </div>
       </div>
  
-      <!-- MY TASKS TAB (admin) -->
-      <div id="admin-mytasks" class="hidden">
-        <h2 class="section-title">My Tasks</h2>
-        <div class="task-list" id="admin-my-task-list"></div>
-        <p class="muted hidden" id="no-admin-my-tasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned to you.</p>
-      </div>
-
-      <!-- TEAM TASKS TAB -->
+      <!-- TASKS TAB -->
       <div id="admin-tasks" class="hidden">
         <div class="two-col">
           <div>
@@ -528,16 +520,9 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="field">
                   <label>Assign to</label>
                   <select class="input" id="t-assign-type" onchange="onAssignTypeChange()">
-                    <optgroup label="── Groups ──">
-                      <option value="group_all_staff">🗂️ All Staff &amp; Admin</option>
-                      <option value="group_all_students">🎓 All Student Workers</option>
-                      <option value="group_everyone">📢 Everyone (whole campus)</option>
-                      <option value="collaborative">🤝 Collaborative (students)</option>
-                    </optgroup>
-                    <optgroup label="── Individual ──">
-                      <option value="staff">👤 Specific Staff / Admin</option>
-                      <option value="student">👤 Specific Student Worker</option>
-                    </optgroup>
+                    <option value="staff">🗂️ Staff / Admin</option>
+                    <option value="student">🎓 Student Worker</option>
+                    <option value="collaborative">🤝 Collaborative (students)</option>
                   </select>
                 </div>
                 <div class="field" id="t-assign-user-field">
@@ -657,27 +642,122 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <button class="tab" id="staff-notif-tab" onclick="staffTab('notifications')">🔔 Notifications</button>
       </div>
  
-      <!-- STAFF MY TASKS TAB -->
+      <!-- STAFF MY TASKS -->
       <div id="staff-mytasks">
-        <div id="staff-hero" class="user-hero"></div>
-        <h2 class="section-title">My Tasks</h2>
-        <p style="color:var(--muted);font-size:.84rem;margin-bottom:1rem">Tasks assigned directly to you.</p>
-        <div class="task-list" id="staff-my-tasks"></div>
-        <p class="muted hidden" id="no-staff-tasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned to you.</p>
+        <div class="two-col">
+          <div>
+            <div id="staff-hero" class="user-hero"></div>
+            <h2 class="section-title">My Tasks</h2>
+            <p class="muted" style="font-size:.84rem;margin-bottom:1rem">Tasks assigned directly to you.</p>
+            <div class="task-list" id="staff-my-tasks"></div>
+            <p class="muted hidden" id="no-staff-tasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned to you.</p>
+          </div>
+          <div class="sticky-panel">
+            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
+              <h3>New Task</h3>
+              <div class="form-grid">
+                <div class="field"><label>Title *</label><input class="input" id="st-title" placeholder="Task title"/></div>
+                <div class="field"><label>Description</label><textarea class="input" id="st-desc" placeholder="Optional details…"></textarea></div>
+                <div class="form-row col2">
+                  <div class="field"><label>Points</label><input class="input" id="st-pts" type="number" min="1" max="500" value="10"/></div>
+                  <div class="field"><label>Priority</label>
+                    <select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Assign to</label>
+                  <select class="input" id="st-assign-type" onchange="onStaffAssignTypeChange()">
+                    <optgroup label="── Myself ──">
+                      <option value="self">🙋 Myself</option>
+                    </optgroup>
+                    <optgroup label="── Groups ──">
+                      <option value="group_all_staff">🗂️ All Staff &amp; Admin</option>
+                      <option value="group_all_students">🎓 All Student Workers</option>
+                      <option value="group_everyone">📢 Everyone (whole campus)</option>
+                    </optgroup>
+                    <optgroup label="── Individual ──">
+                      <option value="student">👤 Specific Student</option>
+                      <option value="peer">👤 Specific Staff / Admin</option>
+                      <option value="request">📨 Request from Staff/Admin</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div class="field hidden" id="st-assign-user-field"><label id="st-assign-user-label">Select person</label><select class="input" id="st-assign-user"><option value="">— Select —</option></select></div>
+                <div class="field"><label>Recurrence</label>
+                  <select class="input" id="st-recurrence" onchange="onStaffRecurrenceChange()">
+                    <option value="none">None</option><option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
+                  </select>
+                </div>
+                <div class="rec-options hidden" id="st-rec-weekly"><div class="field"><label>Resets every</label><select class="input" id="st-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
+                <div class="rec-options hidden" id="st-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="st-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
+                <div class="rec-options hidden" id="st-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
+                <button class="btn btn-primary" onclick="staffAddTask()">Create Task</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- STAFF TEAM TASKS TAB -->
+      <!-- STAFF TEAM TASKS -->
       <div id="staff-teamtasks" class="hidden">
-        <h2 class="section-title">Team Tasks</h2>
-        <p style="color:var(--muted);font-size:.84rem;margin-bottom:1rem">Tasks assigned to other staff, admins, and student workers — not including you.</p>
-        <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.6rem">👔 Staff &amp; Admin</h3>
-        <div class="task-list" id="staff-team-peer-tasks"></div>
-        <p class="muted hidden" id="no-staff-team-peer" style="font-size:.88rem;margin-top:.4rem">No staff/admin tasks.</p>
-        <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--muted);margin-bottom:.6rem;margin-top:1.5rem">🎓 Student Workers</h3>
-        <div class="task-list" id="staff-delegated-tasks"></div>
-        <p class="muted hidden" id="no-staff-delegated" style="font-size:.88rem;margin-top:.4rem">No student worker tasks.</p>
+        <div class="two-col">
+          <div>
+            <h2 class="section-title">Team Tasks</h2>
+            <p class="muted" style="font-size:.84rem;margin-bottom:1rem">Tasks assigned to others — not including you.</p>
+            <div id="staff-help-banner" class="alert-banner warn hidden"><div class="alert-icon">🆘</div><div class="alert-body"><div class="alert-title">Help Requested</div><div id="staff-help-items"></div></div></div>
+            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.6rem;margin-top:.25rem">👔 Staff &amp; Admin</h3>
+            <div class="task-list" id="staff-team-peer-tasks"></div>
+            <p class="muted hidden" id="no-staff-team-peer" style="font-size:.88rem;margin-top:.4rem">No staff/admin tasks.</p>
+            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--muted);margin-bottom:.6rem;margin-top:1.5rem">🎓 Student Workers</h3>
+            <div class="task-list" id="staff-delegated-tasks"></div>
+            <p class="muted hidden" id="no-staff-delegated" style="font-size:.88rem;margin-top:.4rem">No student worker tasks.</p>
+          </div>
+          <div class="sticky-panel">
+            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
+              <h3>New Task</h3>
+              <p style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem">Assign a task to someone else on your team.</p>
+              <div class="form-grid">
+                <div class="field"><label>Title *</label><input class="input" id="st2-title" placeholder="Task title"/></div>
+                <div class="field"><label>Description</label><textarea class="input" id="st2-desc" placeholder="Optional details…"></textarea></div>
+                <div class="form-row col2">
+                  <div class="field"><label>Points</label><input class="input" id="st2-pts" type="number" min="1" max="500" value="10"/></div>
+                  <div class="field"><label>Priority</label>
+                    <select class="input" id="st2-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Assign to</label>
+                  <select class="input" id="st2-assign-type" onchange="onStaff2AssignTypeChange()">
+                    <optgroup label="── Groups ──">
+                      <option value="group_all_staff">🗂️ All Staff &amp; Admin</option>
+                      <option value="group_all_students">🎓 All Student Workers</option>
+                      <option value="group_everyone">📢 Everyone (whole campus)</option>
+                    </optgroup>
+                    <optgroup label="── Individual ──">
+                      <option value="student">👤 Specific Student</option>
+                      <option value="peer">👤 Specific Staff / Admin</option>
+                      <option value="request">📨 Request from Staff/Admin</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div class="field hidden" id="st2-assign-user-field"><label id="st2-assign-user-label">Select person</label><select class="input" id="st2-assign-user"><option value="">— Select —</option></select></div>
+                <div class="field"><label>Recurrence</label>
+                  <select class="input" id="st2-recurrence" onchange="onStaff2RecurrenceChange()">
+                    <option value="none">None</option><option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
+                  </select>
+                </div>
+                <div class="rec-options hidden" id="st2-rec-weekly"><div class="field"><label>Resets every</label><select class="input" id="st2-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
+                <div class="rec-options hidden" id="st2-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="st2-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
+                <div class="rec-options hidden" id="st2-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st2-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
+                <button class="btn btn-primary" onclick="staffAddTask2()">Create Task</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
- 
+
       <!-- STAFF WORKERS TAB -->
       <div id="staff-workers" class="hidden">
         <div class="two-col">
@@ -702,51 +782,6 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       </div>
  
       <!-- STAFF TASKS TAB -->
-      <div id="staff-tasks" class="hidden">
-        <div class="two-col">
-          <div>
-            <h2 class="section-title">All Tasks — <span id="staff-tasks-label" style="color:var(--campus)"></span></h2>
-            <div id="staff-help-banner" class="alert-banner warn hidden"><div class="alert-icon">🆘</div><div class="alert-body"><div class="alert-title">Help Requested</div><div id="staff-help-items"></div></div></div>
-            <div class="task-list" id="staff-task-list"></div>
-            <p class="muted hidden" id="no-staff-task-list" style="font-size:.88rem;margin-top:.75rem">No tasks yet.</p>
-          </div>
-          <div class="sticky-panel">
-            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
-              <h3>New Task</h3>
-              <div class="form-grid">
-                <div class="field"><label>Title *</label><input class="input" id="st-title" placeholder="Task title"/></div>
-                <div class="field"><label>Description</label><textarea class="input" id="st-desc" placeholder="Optional details…"></textarea></div>
-                <div class="form-row col2">
-                  <div class="field"><label>Points</label><input class="input" id="st-pts" type="number" min="1" max="500" value="10"/></div>
-                  <div class="field"><label>Priority</label>
-                    <select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
-                  </div>
-                </div>
-                <div class="field"><label>Assign to</label>
-                  <select class="input" id="st-assign-type" onchange="onStaffAssignTypeChange()">
-                    <option value="self">🙋 Myself</option>
-                    <option value="student">👤 Specific Student</option>
-                    <option value="peer">👤 Specific Staff / Admin</option>
-                    <option value="request">📨 Request from Staff/Admin</option>
-                  </select>
-                </div>
-                <div class="field hidden" id="st-assign-user-field"><label id="st-assign-user-label">Select person</label><select class="input" id="st-assign-user"><option value="">— Select —</option></select></div>
-                <div class="field"><label>Recurrence</label>
-                  <select class="input" id="st-recurrence" onchange="onStaffRecurrenceChange()">
-                    <option value="none">None</option><option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
-                  </select>
-                </div>
-                <div class="rec-options hidden" id="st-rec-weekly"><div class="field"><label>Resets every</label><select class="input" id="st-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
-                <div class="rec-options hidden" id="st-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="st-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
-                <div class="rec-options hidden" id="st-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
-                <button class="btn btn-primary" onclick="staffAddTask()">Create Task</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
- 
       <!-- STAFF LEADERBOARD -->
       <div id="staff-leaderboard" class="hidden">
         <h2 class="section-title">Student Leaderboard — <span id="staff-lb-label" style="color:var(--campus)"></span></h2>
@@ -1203,13 +1238,13 @@ const VIEWS=['landing','login-view','pw-reset-view','app-shell','db-error'];
 function showView(id){VIEWS.forEach(v=>$(v).classList.toggle('hidden',v!==id));}
  
 function adminTab(name){
-  const tabs=['workers','staff','mytasks','tasks','leaderboard','messages','notifications'];
+  const tabs=['workers','staff','tasks','leaderboard','messages','notifications'];
   tabs.forEach(t=>$(`admin-${t}`).classList.toggle('hidden',t!==name));
   $('admin-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='notifications') renderAdminNotifications();
 }
 function staffTab(name){
-  const tabs=['mytasks','teamtasks','workers','tasks','leaderboard','messages','notifications'];
+  const tabs=['mytasks','teamtasks','workers','leaderboard','messages','notifications'];
   tabs.forEach(t=>$(`staff-${t}`).classList.toggle('hidden',t!==name));
   $('staff-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='mytasks') renderStaffMyTasks();
@@ -1348,7 +1383,7 @@ function renderAll(){
   if(!currentUser) return;
   updateNotifBadges();
   if(currentUser.role==='admin'){
-    renderUserLists();renderAdminMyTasks();renderAdminTasks();renderAdminLb();renderAdminMessages();
+    renderUserLists();renderAdminTasks();renderAdminLb();renderAdminMessages();
     renderPitchBanner('admin');renderHelpBanner('admin');renderAllPitches();populateAssignSelects();
   } else if(currentUser.role==='staff'){
     renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();renderStaffTasks();
@@ -1617,29 +1652,11 @@ function renderStaffHero(){
 }
  
 function renderStaffMyTasks(){
-  const list=$('staff-my-tasks'),delList=$('staff-delegated-tasks');
-  if(!list)return;list.innerHTML='';if(delList)delList.innerHTML='';
-  const studentIds=new Set(campusUsers('student').map(u=>u.id));
+  const list=$('staff-my-tasks');
+  if(!list)return;list.innerHTML='';
   const campusT=tasks.filter(t=>t.campus===activeCampus);
-  // Section 1: tasks where I am the assignee (staff/peer tasks assigned to me)
-  const mine=campusT.filter(t=>
-    t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id)
-  );
-  // Section 2: tasks I created that are assigned to a student
-  const delegated=campusT.filter(t=>
-    t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to)&&String(t.created_by)===String(currentUser.id)
-  );
+  const mine=campusT.filter(t=>t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id));
   $('no-staff-tasks').classList.toggle('hidden',mine.length>0);
-  if($('no-staff-delegated'))$('no-staff-delegated').classList.toggle('hidden',delegated.length>0);
-  mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
-  if(delList) delegated.forEach(t=>buildTaskRows(t,true).forEach(r=>delList.appendChild(r)));
-}
- 
-function renderAdminMyTasks(){
-  const list=$('admin-my-task-list');if(!list)return;list.innerHTML='';
-  const ct=campusTasks();
-  const mine=ct.filter(t=>t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id));
-  $('no-admin-my-tasks').classList.toggle('hidden',mine.length>0);
   mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
 }
 
@@ -1648,11 +1665,9 @@ function renderStaffTeamTasks(){
   if(!peerList||!stuList)return;peerList.innerHTML='';stuList.innerHTML='';
   const campusT=tasks.filter(t=>t.campus===activeCampus);
   const studentIds=new Set(campusUsers('student').map(u=>u.id));
-  // Peer tasks: specific tasks assigned to someone who is NOT the current user, and NOT a student
   const peerTasks=campusT.filter(t=>
     t.task_type==='specific'&&t.assign_to&&!studentIds.has(t.assign_to)&&String(t.assign_to)!==String(currentUser.id)
   );
-  // Student tasks: specific tasks assigned to a student, OR collaborative tasks
   const stuTasks=campusT.filter(t=>
     (t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to))||t.task_type==='collaborative'||t.task_type==='everyone'
   );
@@ -1661,7 +1676,7 @@ function renderStaffTeamTasks(){
   peerTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>peerList.appendChild(r)));
   stuTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>stuList.appendChild(r)));
 }
-
+ 
 function renderStaffTasks(){
   const list=$('staff-task-list');if(!list)return;list.innerHTML='';
   const ct=campusTasks();$('no-staff-task-list').classList.toggle('hidden',ct.length>0);
@@ -1925,6 +1940,22 @@ function onStaffAssignTypeChange(){
     [...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser.id).forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
   }
 }
+function onStaff2AssignTypeChange(){
+  const v=$('st2-assign-type').value;
+  const showUser=['student','peer','request'].includes(v);
+  $('st2-assign-user-field').classList.toggle('hidden',!showUser);
+  if(!showUser)return;
+  const sel=$('st2-assign-user'),lbl=$('st2-assign-user-label');
+  sel.innerHTML='<option value="">— Select —</option>';
+  if(v==='student'){
+    lbl.textContent='Select Student Worker';
+    campusUsers('student').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});
+  } else {
+    lbl.textContent='Select Staff / Admin';
+    [...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser.id).forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
+  }
+}
+function onStaff2RecurrenceChange(){const v=$('st2-recurrence').value;$('st2-rec-weekly').classList.toggle('hidden',v!=='weekly');$('st2-rec-monthly').classList.toggle('hidden',v!=='monthly');$('st2-rec-interval').classList.toggle('hidden',v!=='interval');}
 function onStaffRecurrenceChange(){const v=$('st-recurrence').value;$('st-rec-weekly').classList.toggle('hidden',v!=='weekly');$('st-rec-monthly').classList.toggle('hidden',v!=='monthly');$('st-rec-interval').classList.toggle('hidden',v!=='interval');}
 function onEditRecurrenceChange(){const v=$('edit-recurrence').value;$('edit-rec-weekly').classList.toggle('hidden',v!=='weekly');$('edit-rec-monthly').classList.toggle('hidden',v!=='monthly');$('edit-rec-interval').classList.toggle('hidden',v!=='interval');}
  
@@ -1958,29 +1989,6 @@ function renderSlotList(containerId,slotsArr,prefix){
 async function addTask(){
   const title=($('t-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   const atype=$('t-assign-type').value;
-  // Group assignments: create one task per member of the group
-  if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){
-    let targets=[];
-    if(atype==='group_all_staff') targets=[...campusUsers('admin'),...campusUsers('staff')];
-    else if(atype==='group_all_students') targets=campusUsers('student');
-    else targets=[...campusUsers('admin'),...campusUsers('staff'),...campusUsers('student')];
-    if(!targets.length)return alert('No users found in that group.');
-    if(!confirm(`Create ${targets.length} individual tasks (one per person)?`))return;
-    setSyncing(true);
-    try{
-      const rec=$('t-recurrence').value;
-      const recDay=rec==='weekly'?Number($('t-rec-weekday').value):rec==='monthly'?Number($('t-rec-monthday').value):null;
-      const recInt=rec==='interval'?Number($('t-rec-interval').value):null;
-      for(const u of targets){
-        await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          [uuid(),title,($('t-desc').value||'').trim()||null,Number($('t-pts').value)||10,$('t-deadline').value||null,$('t-priority').value,'specific',u.id,activeCampus,2,currentUser.id,currentUser.role,rec,recInt,recDay,null,0]);
-        await sendNotification({to_user:u.id,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
-      }
-    }catch(e){alert('Error: '+e.message);}
-    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='group_all_staff';$('t-one-per-worker').checked=false;
-    onRecurrenceChange();onAssignTypeChange();newTaskSlots=[];renderSlotList('slot-list',newTaskSlots,'new');await loadData();setSyncing(false);
-    return;
-  }
   const assignTo=(atype==='staff'||atype==='student')?($('t-assign-user').value||null):null;
   if((atype==='staff'||atype==='student')&&!assignTo)return alert('Please select a person to assign this task to.');
   const rec=$('t-recurrence').value;
@@ -1988,21 +1996,49 @@ async function addTask(){
   const recInt=rec==='interval'?Number($('t-rec-interval').value):null;
   const slotConfig=newTaskSlots.length?JSON.stringify(newTaskSlots):null;
   const onePer=$('t-one-per-worker').checked?1:0;
+  // Map UI values to DB task_type: staff/student → 'specific', collaborative → 'collaborative'
   const dbTaskType=atype==='collaborative'?'collaborative':'specific';
   setSyncing(true);
   try{
     await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [uuid(),title,($('t-desc').value||'').trim()||null,Number($('t-pts').value)||10,$('t-deadline').value||null,$('t-priority').value,dbTaskType,assignTo,activeCampus,Number($('t-collab-required').value)||2,currentUser.id,currentUser.role,rec,recInt,recDay,slotConfig,onePer]);
-    if(assignTo) await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
-    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='group_all_staff';$('t-one-per-worker').checked=false;
+    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='staff';$('t-one-per-worker').checked=false;
     onRecurrenceChange();onAssignTypeChange();newTaskSlots=[];renderSlotList('slot-list',newTaskSlots,'new');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
  
  
+async function _staffCreateGroupTasks(prefix){
+  // shared group fan-out logic for both staff task forms
+  const titleId=prefix+'-title',descId=prefix+'-desc',ptsId=prefix+'-pts',prioId=prefix+'-priority',
+        recId=prefix+'-recurrence',wdId=prefix+'-rec-weekday',mdId=prefix+'-rec-monthday',ivId=prefix+'-rec-interval-val',atypeId=prefix+'-assign-type';
+  const title=($( titleId).value||'').trim();if(!title)return alert('Please enter a task title.');
+  const atype=$(atypeId).value;
+  let targets=[];
+  if(atype==='group_all_staff') targets=[...campusUsers('admin'),...campusUsers('staff')];
+  else if(atype==='group_all_students') targets=campusUsers('student');
+  else targets=[...campusUsers('admin'),...campusUsers('staff'),...campusUsers('student')];
+  if(!targets.length)return alert('No users found in that group.');
+  if(!confirm(`Create ${targets.length} individual tasks (one per person)?`))return;
+  const rec=$(recId).value;
+  const recDay=rec==='weekly'?Number($(wdId).value):rec==='monthly'?Number($(mdId).value):null;
+  const recInt=rec==='interval'?Number($(ivId).value):null;
+  setSyncing(true);
+  try{
+    for(const u of targets){
+      await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [uuid(),title,($( descId).value||'').trim()||null,Number($(ptsId).value)||10,null,$(prioId).value,'specific',u.id,activeCampus,2,currentUser.id,'staff',rec,recInt,recDay]);
+      await sendNotification({to_user:u.id,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
+    }
+  }catch(e){alert('Error: '+e.message);}
+  $( titleId).value='';$( descId).value='';$(ptsId).value='10';$(prioId).value='medium';$(recId).value='none';
+  await loadData();setSyncing(false);
+}
+
 async function staffAddTask(){
-  const title=($('st-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   const atype=$('st-assign-type').value;
+  if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){await _staffCreateGroupTasks('st');return;}
+  const title=($('st-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   let assignTo=null,taskType='specific',requestedBy=null;
   if(atype==='self'){
     assignTo=currentUser.id;
@@ -2024,6 +2060,33 @@ async function staffAddTask(){
     if(assignTo&&assignTo!==currentUser.id){await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});}
     $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-priority').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='self';
     onStaffRecurrenceChange();onStaffAssignTypeChange();await loadData();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+async function staffAddTask2(){
+  const atype=$('st2-assign-type').value;
+  if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){await _staffCreateGroupTasks('st2');return;}
+  const title=($('st2-title').value||'').trim();if(!title)return alert('Please enter a task title.');
+  let assignTo=null,requestedBy=null;
+  if(atype==='student'||atype==='peer'){
+    assignTo=$('st2-assign-user').value||null;
+    if(!assignTo)return alert('Please select a person.');
+  } else if(atype==='request'){
+    assignTo=$('st2-assign-user').value||null;
+    if(!assignTo)return alert('Please select a person.');
+    requestedBy=currentUser.id;
+  }
+  if(!assignTo)return alert('Please select who to assign this task to.');
+  const rec=$('st2-recurrence').value;
+  const recDay=rec==='weekly'?Number($('st2-rec-weekday').value):rec==='monthly'?Number($('st2-rec-monthday').value):null;
+  const recInt=rec==='interval'?Number($('st2-rec-interval-val').value):null;
+  setSyncing(true);
+  try{
+    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),title,($('st2-desc').value||'').trim()||null,Number($('st2-pts').value)||10,null,$('st2-priority').value,'specific',assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
+    await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
+    $('st2-title').value='';$('st2-desc').value='';$('st2-pts').value='10';$('st2-priority').value='medium';$('st2-recurrence').value='none';$('st2-assign-type').value='peer';
+    onStaff2RecurrenceChange();onStaff2AssignTypeChange();await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
  

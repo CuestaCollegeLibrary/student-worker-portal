@@ -520,20 +520,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="field">
                   <label>Assign to</label>
                   <select class="input" id="t-assign-type" onchange="onAssignTypeChange()">
-                    <option value="everyone">📢 Everyone</option>
-                    <option value="specific">👤 Specific Person</option>
-                    <option value="collaborative">🤝 Collaborative</option>
+                    <option value="staff">🗂️ Staff / Admin</option>
+                    <option value="student">🎓 Student Worker</option>
+                    <option value="collaborative">🤝 Collaborative (students)</option>
                   </select>
                 </div>
-                <div class="field hidden" id="t-assign-group-field">
-                  <label>Assign to group</label>
-                  <div class="type-toggle" id="t-assign-group-toggle">
-                    <button type="button" class="type-btn active" id="t-group-staff" onclick="setAdminAssignGroup('staff')">🗂️ Staff</button>
-                    <button type="button" class="type-btn" id="t-group-student" onclick="setAdminAssignGroup('student')">🎓 Student Workers</button>
-                  </div>
-                </div>
-                <div class="field hidden" id="t-assign-user-field">
-                  <label>Select person</label>
+                <div class="field" id="t-assign-user-field">
+                  <label id="t-assign-user-label">Select Staff / Admin</label>
                   <select class="input" id="t-assign-user"><option value="">— Select —</option></select>
                 </div>
                 <div class="field hidden" id="t-collab-field">
@@ -706,13 +699,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 </div>
                 <div class="field"><label>Assign to</label>
                   <select class="input" id="st-assign-type" onchange="onStaffAssignTypeChange()">
-                    <option value="everyone">📢 Everyone (students)</option>
-                    <option value="specific">👤 Specific Student</option>
                     <option value="self">🙋 Myself</option>
+                    <option value="student">👤 Specific Student</option>
+                    <option value="peer">👤 Specific Staff / Admin</option>
                     <option value="request">📨 Request from Staff/Admin</option>
                   </select>
                 </div>
-                <div class="field hidden" id="st-assign-user-field"><label>Select person</label><select class="input" id="st-assign-user"><option value="">— Select —</option></select></div>
+                <div class="field hidden" id="st-assign-user-field"><label id="st-assign-user-label">Select person</label><select class="input" id="st-assign-user"><option value="">— Select —</option></select></div>
                 <div class="field"><label>Recurrence</label>
                   <select class="input" id="st-recurrence" onchange="onStaffRecurrenceChange()">
                     <option value="none">None</option><option value="daily">Daily</option>
@@ -1394,9 +1387,11 @@ function renderList(listId,emptyId,labelId,userArr,showPts){
 function populateAssignSelects(){
   const students=campusUsers('student'),staff=campusUsers('staff'),admins=campusUsers('admin');
   const all=[...admins,...staff,...students];
-  // Admin task user select is populated on demand by populateAdminAssignUser()
-  populateAdminAssignUser(adminAssignGroup);
-  [['st-assign-user',students],['dm-user',all],['sdm-user',[...admins,...staff,...students]]].forEach(([id,pool])=>{
+  // Admin task user select is driven by onAssignTypeChange(); trigger it to sync on load
+  onAssignTypeChange();
+  // Staff task user select is driven by onStaffAssignTypeChange()
+  onStaffAssignTypeChange();
+  [['dm-user',all],['sdm-user',all]].forEach(([id,pool])=>{
     const sel=$(id);if(!sel)return;const prev=sel.value;sel.innerHTML='<option value="">— Select —</option>';
     pool.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===prev)o.selected=true;sel.appendChild(o);});
   });
@@ -1498,19 +1493,13 @@ function renderAdminTasks(){
   $('tasks-campus-label').textContent=CAMPUS_LABELS[activeCampus]||'';
   const ct=campusTasks();
   const studentIds=new Set(campusUsers('student').map(u=>u.id));
-  // A task is "delegated to students" if assign_to is a student, OR task_type=everyone and created_by_role='admin'/'staff' for student-facing work
-  // We use assign_to: if it points to a student → delegated; if it points to staff/admin or is null (everyone/collab) → peer
-  const peerTasks=[], stuTasks=[];
+  const peerTasks=[],stuTasks=[];
   ct.forEach(t=>{
-    if(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to)){
-      stuTasks.push(t);
-    } else if(t.task_type==='everyone'||t.task_type==='collaborative'){
-      // "everyone" tasks go to peer section (admins/staff see them too); students also see them but that's their view
-      peerTasks.push(t);
-    } else {
-      // specific → staff/admin, or null assign_to
-      peerTasks.push(t);
-    }
+    // Delegated to a student = specific task whose assign_to is a student
+    // Collaborative = student-facing, goes to student section
+    const isStudentTask=(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to))||t.task_type==='collaborative';
+    if(isStudentTask) stuTasks.push(t);
+    else peerTasks.push(t); // specific→staff/admin
   });
   $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
   $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
@@ -1604,15 +1593,15 @@ function renderStaffMyTasks(){
   const list=$('staff-my-tasks'),delList=$('staff-delegated-tasks');
   if(!list)return;list.innerHTML='';if(delList)delList.innerHTML='';
   const studentIds=new Set(campusUsers('student').map(u=>u.id));
-  // My tasks: assigned to me specifically, or everyone tasks (peer-level)
-  const mine=tasks.filter(t=>t.campus===activeCampus&&(
-    (t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id))||
-    (t.task_type==='everyone')||
-    (t.task_type==='collaborative')
-  )&&!(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to)));
-  // Delegated: tasks this staff member created that are assigned to students
-  const delegated=tasks.filter(t=>t.campus===activeCampus&&t.created_by===currentUser.id&&
-    t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to));
+  const campusT=tasks.filter(t=>t.campus===activeCampus);
+  // Section 1: tasks where I am the assignee (staff/peer tasks assigned to me)
+  const mine=campusT.filter(t=>
+    t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id)
+  );
+  // Section 2: tasks I created that are assigned to a student
+  const delegated=campusT.filter(t=>
+    t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to)&&String(t.created_by)===String(currentUser.id)
+  );
   $('no-staff-tasks').classList.toggle('hidden',mine.length>0);
   if($('no-staff-delegated'))$('no-staff-delegated').classList.toggle('hidden',delegated.length>0);
   mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
@@ -1851,29 +1840,37 @@ function triggerPasswordReset(){if(profileUser)forcePasswordReset(profileUser.id
 // ══════════════════════════════════════════════════════════════
 // CRUD — TASKS
 // ══════════════════════════════════════════════════════════════
-let adminAssignGroup='staff'; // tracks which group admin is targeting for specific assignment
 function onAssignTypeChange(){
   const v=$('t-assign-type').value;
-  const isSpecific=v==='specific';
-  $('t-assign-group-field').classList.toggle('hidden',!isSpecific);
-  $('t-assign-user-field').classList.toggle('hidden',!isSpecific);
-  $('t-collab-field').classList.toggle('hidden',v!=='collaborative');
-  if(isSpecific) populateAdminAssignUser(adminAssignGroup);
-}
-function setAdminAssignGroup(group){
-  adminAssignGroup=group;
-  $('t-group-staff').classList.toggle('active',group==='staff');
-  $('t-group-student').classList.toggle('active',group==='student');
-  populateAdminAssignUser(group);
-}
-function populateAdminAssignUser(group){
-  const sel=$('t-assign-user');if(!sel)return;
-  const pool=group==='staff'?[...campusUsers('admin'),...campusUsers('staff')]:campusUsers('student');
-  const prev=sel.value;sel.innerHTML='<option value="">— Select —</option>';
-  pool.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===prev)o.selected=true;sel.appendChild(o);});
+  const showUser = v==='staff'||v==='student';
+  $('t-assign-user-field').classList.toggle('hidden', !showUser);
+  $('t-collab-field').classList.toggle('hidden', v!=='collaborative');
+  if(v==='staff'){
+    $('t-assign-user-label').textContent='Select Staff / Admin';
+    const sel=$('t-assign-user');sel.innerHTML='<option value="">— Select —</option>';
+    [...campusUsers('admin'),...campusUsers('staff')].forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
+  } else if(v==='student'){
+    $('t-assign-user-label').textContent='Select Student Worker';
+    const sel=$('t-assign-user');sel.innerHTML='<option value="">— Select —</option>';
+    campusUsers('student').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});
+  }
 }
 function onRecurrenceChange(){const v=$('t-recurrence').value;$('rec-weekly-opts').classList.toggle('hidden',v!=='weekly');$('rec-monthly-opts').classList.toggle('hidden',v!=='monthly');$('rec-interval-opts').classList.toggle('hidden',v!=='interval');}
-function onStaffAssignTypeChange(){const v=$('st-assign-type').value;$('st-assign-user-field').classList.toggle('hidden',!['specific','request'].includes(v));}
+function onStaffAssignTypeChange(){
+  const v=$('st-assign-type').value;
+  const showUser=['student','peer','request'].includes(v);
+  $('st-assign-user-field').classList.toggle('hidden',!showUser);
+  if(!showUser)return;
+  const sel=$('st-assign-user'),lbl=$('st-assign-user-label');
+  sel.innerHTML='<option value="">— Select —</option>';
+  if(v==='student'){
+    lbl.textContent='Select Student Worker';
+    campusUsers('student').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});
+  } else {
+    lbl.textContent='Select Staff / Admin';
+    [...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser.id).forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
+  }
+}
 function onStaffRecurrenceChange(){const v=$('st-recurrence').value;$('st-rec-weekly').classList.toggle('hidden',v!=='weekly');$('st-rec-monthly').classList.toggle('hidden',v!=='monthly');$('st-rec-interval').classList.toggle('hidden',v!=='interval');}
 function onEditRecurrenceChange(){const v=$('edit-recurrence').value;$('edit-rec-weekly').classList.toggle('hidden',v!=='weekly');$('edit-rec-monthly').classList.toggle('hidden',v!=='monthly');$('edit-rec-interval').classList.toggle('hidden',v!=='interval');}
  
@@ -1907,28 +1904,39 @@ function renderSlotList(containerId,slotsArr,prefix){
 async function addTask(){
   const title=($('t-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   const atype=$('t-assign-type').value;
-  const assignTo=(atype==='specific'||atype==='collaborative')?($('t-assign-user').value||null):null;
+  const assignTo=(atype==='staff'||atype==='student')?($('t-assign-user').value||null):null;
+  if((atype==='staff'||atype==='student')&&!assignTo)return alert('Please select a person to assign this task to.');
   const rec=$('t-recurrence').value;
   const recDay=rec==='weekly'?Number($('t-rec-weekday').value):rec==='monthly'?Number($('t-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('t-rec-interval').value):null;
   const slotConfig=newTaskSlots.length?JSON.stringify(newTaskSlots):null;
   const onePer=$('t-one-per-worker').checked?1:0;
+  // Map UI values to DB task_type: staff/student → 'specific', collaborative → 'collaborative'
+  const dbTaskType=atype==='collaborative'?'collaborative':'specific';
   setSyncing(true);
   try{
     await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uuid(),title,($('t-desc').value||'').trim()||null,Number($('t-pts').value)||10,$('t-deadline').value||null,$('t-priority').value,atype==='specific'?'specific':atype==='collaborative'?'collaborative':'everyone',assignTo,activeCampus,Number($('t-collab-required').value)||2,currentUser.id,currentUser.role,rec,recInt,recDay,slotConfig,onePer]);
-    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='everyone';$('t-one-per-worker').checked=false;
+      [uuid(),title,($('t-desc').value||'').trim()||null,Number($('t-pts').value)||10,$('t-deadline').value||null,$('t-priority').value,dbTaskType,assignTo,activeCampus,Number($('t-collab-required').value)||2,currentUser.id,currentUser.role,rec,recInt,recDay,slotConfig,onePer]);
+    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='staff';$('t-one-per-worker').checked=false;
     onRecurrenceChange();onAssignTypeChange();newTaskSlots=[];renderSlotList('slot-list',newTaskSlots,'new');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
  
+ 
 async function staffAddTask(){
   const title=($('st-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   const atype=$('st-assign-type').value;
-  let assignTo=null,taskType='everyone',requestedBy=null;
-  if(atype==='self'){assignTo=currentUser.id;taskType='specific';}
-  else if(atype==='specific'){assignTo=$('st-assign-user').value||null;taskType='specific';}
-  else if(atype==='request'){assignTo=$('st-assign-user').value||null;taskType='specific';requestedBy=currentUser.id;}
+  let assignTo=null,taskType='specific',requestedBy=null;
+  if(atype==='self'){
+    assignTo=currentUser.id;
+  } else if(atype==='student'||atype==='peer'){
+    assignTo=$('st-assign-user').value||null;
+    if(!assignTo)return alert('Please select a person.');
+  } else if(atype==='request'){
+    assignTo=$('st-assign-user').value||null;
+    if(!assignTo)return alert('Please select a person.');
+    requestedBy=currentUser.id;
+  }
   const rec=$('st-recurrence').value;
   const recDay=rec==='weekly'?Number($('st-rec-weekday').value):rec==='monthly'?Number($('st-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('st-rec-interval-val').value):null;
@@ -1936,8 +1944,8 @@ async function staffAddTask(){
   try{
     await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [uuid(),title,($('st-desc').value||'').trim()||null,Number($('st-pts').value)||10,null,$('st-priority').value,taskType,assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
-    if(requestedBy&&assignTo){await sendNotification({to_user:assignTo,type:'message',title:'New Task Request',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});}
-    $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-priority').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='everyone';
+    if(assignTo&&assignTo!==currentUser.id){await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});}
+    $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-priority').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='self';
     onStaffRecurrenceChange();onStaffAssignTypeChange();await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }

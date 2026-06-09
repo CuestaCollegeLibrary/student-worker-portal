@@ -579,6 +579,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               <div class="form-grid">
                 <div class="field"><label>Name</label><input class="input" id="w-name" placeholder="Full name"/></div>
                 <div class="field"><label>Username</label><input class="input" id="w-username" placeholder="Login username"/></div>
+                <div class="field"><label>Weekly Hours *</label><input class="input" id="w-hours" type="number" min="1" max="40" placeholder="e.g. 16"/><div style="color:var(--faint);font-size:.74rem;margin-top:.25rem">Used to fairly scale task points</div></div>
                 <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-w"></div></div>
                 <div class="field"><label>Campus</label><div id="w-campus-display" style="color:var(--campus);font-weight:600;font-size:.9rem;padding:.3rem 0"></div></div>
                 <button class="btn btn-primary" onclick="addUser('student')">Add Student Worker</button>
@@ -794,6 +795,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               <div class="form-grid">
                 <div class="field"><label>Name</label><input class="input" id="sw-name" placeholder="Full name"/></div>
                 <div class="field"><label>Username</label><input class="input" id="sw-username" placeholder="Login username"/></div>
+                <div class="field"><label>Weekly Hours *</label><input class="input" id="sw-hours" type="number" min="1" max="40" placeholder="e.g. 16"/><div style="color:var(--faint);font-size:.74rem;margin-top:.25rem">Used to fairly scale task points</div></div>
                 <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-sw"></div></div>
                 <button class="btn btn-primary" onclick="staffAddWorker()">Add Student Worker</button>
               </div>
@@ -922,9 +924,21 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       </div>
     </div>
     <!-- Point adjustment buttons (students only) -->
-    <div id="profile-adj-btns" style="display:flex;gap:.5rem;margin-bottom:1.25rem">
+    <div id="profile-adj-btns" style="display:flex;gap:.5rem;margin-bottom:.75rem">
       <button class="btn btn-success btn-sm" onclick="openAdjModal('bonus')">＋ Bonus Points</button>
       <button class="btn btn-danger btn-sm" onclick="openAdjModal('deduct')">－ Deduct Points</button>
+    </div>
+    <!-- Weekly hours (students only) -->
+    <div id="profile-hours-row" style="display:flex;align-items:center;gap:.75rem;background:var(--surface2);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:1.25rem">
+      <span style="font-size:1.1rem">🕐</span>
+      <div style="flex:1">
+        <div style="font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.2rem">Weekly Hours</div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <input class="input" id="profile-hours-input" type="number" min="1" max="40" style="width:80px;padding:.35rem .6rem;font-size:.9rem"/>
+          <button class="btn btn-success btn-sm" onclick="saveProfileHours()">Save</button>
+          <span id="profile-hours-note" style="font-size:.75rem;color:var(--muted)">Used to scale task points fairly</span>
+        </div>
+      </div>
     </div>
     <div class="profile-section">
       <div class="profile-section-title">✅ Completed Tasks</div>
@@ -1200,6 +1214,26 @@ const $=id=>document.getElementById(id);
 const campusUsers=role=>users.filter(u=>u.campus===activeCampus&&u.role===role&&u.active!=='0'&&u.active!==0);
 const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus);
 const setCampusAccent=c=>document.documentElement.style.setProperty('--campus',CAMPUS_COLORS[c]||'#F4A7B9');
+
+// ── POINT SCALING ──────────────────────────────────────────────
+// Returns the median weekly hours across all active students on campus
+function campusMedianHours(){
+  const hrs=campusUsers('student').map(u=>u.weekly_hours).filter(h=>h>0).sort((a,b)=>a-b);
+  if(!hrs.length) return 0;
+  const mid=Math.floor(hrs.length/2);
+  return hrs.length%2===0?(hrs[mid-1]+hrs[mid])/2:hrs[mid];
+}
+
+// Returns the scaled point value for a given task and user
+// Admin/staff always see the raw baseline. Students see their scaled value.
+function scaledPoints(task,user){
+  if(!user||user.role!=='student') return task.points_value||0;
+  if(!task.points_value||task.points_value<=0) return 0;
+  const median=campusMedianHours();
+  if(!median||!user.weekly_hours) return task.points_value; // no hours set = baseline
+  const scale=median/user.weekly_hours;
+  return Math.max(1, Math.round(task.points_value * scale));
+}
  
 // ══════════════════════════════════════════════════════════════
 // OCCURRENCE KEY
@@ -1291,9 +1325,9 @@ async function loadData() {
   setSyncing(true);
   try {
     await tursoBatch([
-      {sql:`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,username TEXT NOT NULL,password TEXT NOT NULL DEFAULT '',must_reset_pw INTEGER NOT NULL DEFAULT 1,role TEXT NOT NULL DEFAULT 'student',campus TEXT NOT NULL DEFAULT 'SLO',avatar_color TEXT NOT NULL DEFAULT '#F4A7B9',points INTEGER NOT NULL DEFAULT 0,completion_count INTEGER NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),created_by TEXT)`},
+      {sql:`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,username TEXT NOT NULL,password TEXT NOT NULL DEFAULT '',must_reset_pw INTEGER NOT NULL DEFAULT 1,role TEXT NOT NULL DEFAULT 'student',campus TEXT NOT NULL DEFAULT 'SLO',avatar_color TEXT NOT NULL DEFAULT '#F4A7B9',points INTEGER NOT NULL DEFAULT 0,completion_count INTEGER NOT NULL DEFAULT 0,weekly_hours REAL NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),created_by TEXT)`},
       {sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT,points_value INTEGER NOT NULL DEFAULT 10,deadline TEXT,priority TEXT NOT NULL DEFAULT 'medium',task_type TEXT NOT NULL DEFAULT 'everyone',assign_to TEXT,campus TEXT NOT NULL DEFAULT 'SLO',collab_required INTEGER NOT NULL DEFAULT 2,created_by TEXT,created_by_role TEXT NOT NULL DEFAULT 'admin',requested_by TEXT,recurrence TEXT NOT NULL DEFAULT 'none',recurrence_interval INTEGER,recurrence_day INTEGER,slot_config TEXT,one_per_worker_day INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
-      {sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester TEXT NOT NULL DEFAULT 'current',occurrence_key TEXT NOT NULL DEFAULT 'once',slot_index INTEGER NOT NULL DEFAULT 0,solo_claimed INTEGER NOT NULL DEFAULT 0,override_reason TEXT,points_voided INTEGER NOT NULL DEFAULT 0,void_reason TEXT,UNIQUE(task_id,user_id,occurrence_key))`},
+      {sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester TEXT NOT NULL DEFAULT 'current',occurrence_key TEXT NOT NULL DEFAULT 'once',slot_index INTEGER NOT NULL DEFAULT 0,solo_claimed INTEGER NOT NULL DEFAULT 0,override_reason TEXT,points_voided INTEGER NOT NULL DEFAULT 0,void_reason TEXT,pts_earned INTEGER NOT NULL DEFAULT 0,UNIQUE(task_id,user_id,occurrence_key))`},
       {sql:`CREATE TABLE IF NOT EXISTS task_rejections (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,rejected_by TEXT NOT NULL,reason TEXT NOT NULL,points_deducted INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
       {sql:`CREATE TABLE IF NOT EXISTS help_requests (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),resolved INTEGER NOT NULL DEFAULT 0,resolved_by TEXT,resolved_at TEXT)`},
       {sql:`CREATE TABLE IF NOT EXISTS point_adjustments (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',type TEXT NOT NULL DEFAULT 'bonus',points INTEGER NOT NULL,reason TEXT NOT NULL,issued_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
@@ -1338,9 +1372,9 @@ async function loadData() {
       tursoFetch('SELECT * FROM help_requests ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM daily_messages ORDER BY show_date DESC'),
     ]);
-    users=u.map(r=>({...r,points:Number(r.points)||0,completion_count:Number(r.completion_count)||0,must_reset_pw:r.must_reset_pw==='1'||r.must_reset_pw===1}));
+    users=u.map(r=>({...r,points:Number(r.points)||0,completion_count:Number(r.completion_count)||0,weekly_hours:Number(r.weekly_hours)||0,must_reset_pw:r.must_reset_pw==='1'||r.must_reset_pw===1}));
     tasks=t.map(r=>({...r,points_value:Number(r.points_value)||10,collab_required:Number(r.collab_required)||2,recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,one_per_worker_day:r.one_per_worker_day==='1'||r.one_per_worker_day===1}));
-    completions=c.map(r=>({...r,solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1,points_voided:r.points_voided==='1'||r.points_voided===1,slot_index:Number(r.slot_index)||0}));
+    completions=c.map(r=>({...r,solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1,points_voided:r.points_voided==='1'||r.points_voided===1,slot_index:Number(r.slot_index)||0,pts_earned:Number(r.pts_earned)||0}));
     notifications=n; notifReads=nr;
     pointAdjs=pa.map(r=>({...r,points:Number(r.points)||0}));
     bonusPitches=bp.map(r=>({...r,points_requested:Number(r.points_requested)||0,points_awarded:r.points_awarded!=null?Number(r.points_awarded):null}));
@@ -1527,8 +1561,14 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   main.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;main.appendChild(d);}
   const meta=document.createElement('div');meta.className='task-meta';
-  // Show points only on tasks that actually have them (student/collab tasks have points_value > 0)
-  if(task.points_value>0){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${task.points_value}pt`;meta.appendChild(p);}
+  // Points: students see their scaled value, admin/staff see baseline (only on student tasks)
+  if(task.points_value>0){
+    const displayPts=currentUser?.role==='student'?scaledPoints(task,currentUser):task.points_value;
+    const p=document.createElement('span');p.className='task-pts';
+    p.textContent=`+${displayPts}pt`;
+    if(isAdmin) p.title=`Baseline: ${task.points_value}pt`;
+    meta.appendChild(p);
+  }
   if(effectiveType==='specific'&&effectiveAssign){const a=document.createElement('span');a.className='task-assign';a.textContent=`→ ${userMap[effectiveAssign]?.name||'?'}`;meta.appendChild(a);}
   if(task.deadline){const dl=document.createElement('span');dl.className=`task-deadline ${overdue?'overdue':'ok'}`;dl.textContent=(overdue?'⚠️ ':'📅 ')+fmtDate(task.deadline);meta.appendChild(dl);}
   if(task.task_type==='collaborative'){const cp=document.createElement('span');cp.className='collab-progress';cp.textContent=soloLocked?'🔒 Solo done':`${occComps.length}/${task.collab_required} done`;meta.appendChild(cp);}
@@ -1829,7 +1869,7 @@ function renderStudentTasks(){
  
 function renderStudentHistory(){
   const list=$('student-history-list');if(!list)return;list.innerHTML='';
-  const myComps=completions.filter(c=>c.user_id===currentUser.id).map(c=>({type:'comp',date:c.completed_at,...c,task:tasks.find(t=>t.id===c.task_id)})).filter(c=>c.task);
+  const myComps=completions.filter(c=>c.user_id===currentUser.id).map(c=>({type:'comp',date:c.completed_at,...c,task:tasks.find(t=>t.id===c.task_id),pts_earned:c.pts_earned||c.task?.points_value||0})).filter(c=>c.task);
   const myAdjs=pointAdjs.filter(p=>p.user_id===currentUser.id).map(p=>({type:'adj',date:p.created_at,...p}));
   const all=[...myComps,...myAdjs].sort((a,b)=>new Date(b.date)-new Date(a.date));
   if(!all.length){list.innerHTML='<p class="muted" style="font-size:.88rem">Nothing here yet!</p>';return;}
@@ -1837,7 +1877,7 @@ function renderStudentHistory(){
     if(item.type==='comp'){
       const row=document.createElement('div');row.className=item.points_voided?'adj-row voided':'hist-row';
       const rl=recLabel(item.task);
-      row.innerHTML=`${item.points_voided?'<span class="adj-icon">⚠️</span>':'<span class="hist-check">✓</span>'}<span class="hist-title">${item.task.title}${rl?` <span style="color:var(--purple);font-size:.72rem">${rl}</span>`:''}</span><span class="hist-pts ${item.points_voided?'minus':''}">${item.points_voided?'voided':'+'+item.task.points_value+'pt'}</span><span class="hist-date">${fmtDate(item.completed_at)}</span>`;
+      row.innerHTML=`${item.points_voided?'<span class="adj-icon">⚠️</span>':'<span class="hist-check">✓</span>'}<span class="hist-title">${item.task.title}${rl?` <span style="color:var(--purple);font-size:.72rem">${rl}</span>`:''}</span><span class="hist-pts ${item.points_voided?'minus':''}">${item.points_voided?'voided':'+'+item.pts_earned+'pt'}</span><span class="hist-date">${fmtDate(item.completed_at)}</span>`;
       if(item.points_voided&&item.void_reason){const vn=document.createElement('div');vn.style.cssText='width:100%;font-size:.75rem;color:#C0294A;margin-top:.25rem;font-style:italic';vn.textContent=`Reason: ${item.void_reason}`;row.appendChild(vn);}
       list.appendChild(row);
     } else {
@@ -1960,20 +2000,31 @@ async function addUser(role){
   const name=($(`${nameId}`).value||'').trim(),uname=($(`${unameId}`).value||'').trim();
   if(!name||!uname)return alert('Name and username are required.');
   const color=role==='staff'?selectedColorS:selectedColorW;
+  let weeklyHours=0;
+  if(role==='student'){
+    weeklyHours=Number($('w-hours').value)||0;
+    if(!weeklyHours||weeklyHours<=0)return alert('Weekly hours are required for student workers.');
+  }
   setSyncing(true);
   try{
-    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,created_by) VALUES(?,?,?,?,1,?,?,?,?)',[uuid(),name,uname.toLowerCase(),'',role,activeCampus,color,currentUser.id]);
-    $(`${nameId}`).value='';$(`${unameId}`).value='';await loadData();
+    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,weekly_hours,created_by) VALUES(?,?,?,?,1,?,?,?,?,?)',
+      [uuid(),name,uname.toLowerCase(),'',role,activeCampus,color,weeklyHours,currentUser.id]);
+    $(`${nameId}`).value='';$(`${unameId}`).value='';
+    if(role==='student')$('w-hours').value='';
+    await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
  
 async function staffAddWorker(){
   const name=($('sw-name').value||'').trim(),uname=($('sw-username').value||'').trim();
   if(!name||!uname)return alert('Name and username are required.');
+  const weeklyHours=Number($('sw-hours').value)||0;
+  if(!weeklyHours||weeklyHours<=0)return alert('Weekly hours are required for student workers.');
   setSyncing(true);
   try{
-    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,created_by) VALUES(?,?,?,?,1,?,?,?,?)',[uuid(),name,uname.toLowerCase(),'','student',activeCampus,selectedColorSW,currentUser.id]);
-    $('sw-name').value='';$('sw-username').value='';await loadData();
+    await tursoFetch('INSERT INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,weekly_hours,created_by) VALUES(?,?,?,?,1,?,?,?,?,?)',
+      [uuid(),name,uname.toLowerCase(),'','student',activeCampus,selectedColorSW,weeklyHours,currentUser.id]);
+    $('sw-name').value='';$('sw-username').value='';$('sw-hours').value='';await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
  
@@ -2247,15 +2298,16 @@ async function completeTask(task,soloClai,slotIdx=0,oKey=null,overrideReason=nul
   const key=oKey||occurrenceKey(task,slotIdx);
   setSyncing(true);
   try{
-    const stmts=[{sql:'INSERT INTO completions(id,task_id,user_id,semester,occurrence_key,slot_index,solo_claimed,override_reason) VALUES(?,?,?,?,?,?,?,?)',
-      args:[uuid(),task.id,currentUser.id,semester(),key,slotIdx,soloClai?1:0,overrideReason||null]}];
-    if(currentUser.role==='student'&&task.points_value>0) stmts.push({sql:'UPDATE users SET points=points+? WHERE id=?',args:[task.points_value,currentUser.id]});
+    const stmts=[{sql:'INSERT INTO completions(id,task_id,user_id,semester,occurrence_key,slot_index,solo_claimed,override_reason,pts_earned) VALUES(?,?,?,?,?,?,?,?,?)',
+      args:[uuid(),task.id,currentUser.id,semester(),key,slotIdx,soloClai?1:0,overrideReason||null,ptsToAward]}];
+    const ptsToAward=scaledPoints(task,currentUser);
+    if(currentUser.role==='student'&&ptsToAward>0) stmts.push({sql:'UPDATE users SET points=points+? WHERE id=?',args:[ptsToAward,currentUser.id]});
     else stmts.push({sql:'UPDATE users SET completion_count=completion_count+1 WHERE id=?',args:[currentUser.id]});
     await tursoBatch(stmts);
-    if(currentUser.role==='student') currentUser.points=(currentUser.points||0)+task.points_value;
+    if(currentUser.role==='student') currentUser.points=(currentUser.points||0)+ptsToAward;
     else currentUser.completion_count=(currentUser.completion_count||0)+1;
     if(overrideReason){await sendNotification({to_campus:activeCampus,to_role:'admin',type:'override',title:'One-per-day Override',body:`${currentUser.name} completed extra slot of "${task.title}". Reason: ${overrideReason}`,icon:'⚠️',campus:activeCampus});}
-    await loadData();if(currentUser.role==='student')celebrate(task);
+    await loadData();if(currentUser.role==='student')celebrate(task,ptsToAward);
   }catch(e){if(e.message?.includes('UNIQUE'))alert('Already completed this slot!');else alert('Error: '+e.message);}setSyncing(false);
 }
  
@@ -2313,9 +2365,10 @@ async function submitVoid(){
   const comp=voidingCompletion,task=tasks.find(t=>t.id===comp.task_id);
   setSyncing(true);
   try{
+    const ptsToVoid=comp.pts_earned||task?.points_value||0;
     await tursoBatch([
       {sql:'UPDATE completions SET points_voided=1,void_reason=? WHERE id=?',args:[reason,comp.id]},
-      {sql:'UPDATE users SET points=MAX(0,points-?) WHERE id=?',args:[task?.points_value||0,comp.user_id]},
+      {sql:'UPDATE users SET points=MAX(0,points-?) WHERE id=?',args:[ptsToVoid,comp.user_id]},
     ]);
     await sendNotification({to_user:comp.user_id,type:'void',title:'Points Voided',body:`Your points for "${task?.title||'a task'}" were voided. Reason: ${reason}`,icon:'⚠️',campus:activeCampus});
     closeVoidModal();await loadData();
@@ -2475,6 +2528,12 @@ function openProfileModal(user){
   $('profile-adj-btns').style.display=isStudent?'flex':'none';
   $('profile-pitches-section').style.display=isStudent?'':'none';
   $('profile-adjs-section').style.display=isStudent?'':'none';
+  $('profile-hours-row').style.display=isStudent?'':'none';
+  if(isStudent){
+    $('profile-hours-input').value=user.weekly_hours||'';
+    const median=campusMedianHours();
+    $('profile-hours-note').textContent=median?`Median on campus: ${median}hrs/wk`:'Set to scale points fairly';
+  }
   $('profile-reset-pw-btn').style.display=(currentUser.role==='admin'||(currentUser.role==='staff'&&isStudent))?'':'none';
   const comps=completions.filter(c=>c.user_id===user.id).map(c=>({...c,task:tasks.find(t=>t.id===c.task_id)})).filter(c=>c.task).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at));
   const compEl=$('profile-completions');compEl.innerHTML=comps.length?'':'<p class="profile-empty">No completions yet.</p>';
@@ -2505,6 +2564,21 @@ function openProfileModal(user){
   $('profile-modal').classList.add('show');
 }
 function closeProfileModal(){$('profile-modal').classList.remove('show');profileUser=null;}
+
+async function saveProfileHours(){
+  if(!profileUser)return;
+  const hrs=Number($('profile-hours-input').value)||0;
+  if(!hrs||hrs<=0)return alert('Please enter a valid number of hours.');
+  setSyncing(true);
+  try{
+    await tursoFetch('UPDATE users SET weekly_hours=? WHERE id=?',[hrs,profileUser.id]);
+    $('profile-hours-note').textContent='✓ Saved!';
+    setTimeout(()=>{$('profile-hours-note').textContent=`Median on campus: ${campusMedianHours()}hrs/wk`;},2000);
+    await loadData();
+    // Update the in-memory profileUser so median recalculates immediately
+    profileUser=users.find(u=>u.id===profileUser.id)||profileUser;
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
  
 // ══════════════════════════════════════════════════════════════
 // SEMESTER RESET
@@ -2535,7 +2609,7 @@ function launchConfetti(){
   if(confettiAnim)cancelAnimationFrame(confettiAnim);confettiAnim=requestAnimationFrame(draw);
 }
 let celebTimeout=null;
-function celebrate(task){$('celeb-task-name').textContent=`"${task.title}"`;$('celeb-pts').textContent=`+${task.points_value} pts ✨`;$('celebration').classList.add('show');launchConfetti();if(celebTimeout)clearTimeout(celebTimeout);celebTimeout=setTimeout(closeCelebration,4500);}
+function celebrate(task,pts){$('celeb-task-name').textContent=`"${task.title}"`;$('celeb-pts').textContent=`+${pts||task.points_value} pts ✨`;$('celebration').classList.add('show');launchConfetti();if(celebTimeout)clearTimeout(celebTimeout);celebTimeout=setTimeout(closeCelebration,4500);}
 function closeCelebration(){$('celebration').classList.remove('show');clearTimeout(celebTimeout);}
  
 // ══════════════════════════════════════════════════════════════

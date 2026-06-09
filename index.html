@@ -1205,6 +1205,7 @@ let selectedColorW='#F4A7B9', selectedColorS='#A8D8EA', selectedColorSW='#C8E6DA
 // ══════════════════════════════════════════════════════════════
 const uuid=()=>([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
 const initials=n=>n.trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+const fmtPts=p=>p==null?'0':(Math.round(Number(p)*100)/100).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1');
 const fmtDate=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
 const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':');const hr=Number(h);return `${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?'AM':'PM'}`;};
 const isPast=d=>d&&new Date(d)<new Date();
@@ -1232,7 +1233,7 @@ function scaledPoints(task,user){
   const median=campusMedianHours();
   if(!median||!user.weekly_hours) return task.points_value; // no hours set = baseline
   const scale=median/user.weekly_hours;
-  return Math.max(1, Math.round(task.points_value * scale));
+  return Math.max(0.01, Math.round(task.points_value * scale * 100) / 100);
 }
  
 // ══════════════════════════════════════════════════════════════
@@ -1327,7 +1328,7 @@ async function loadData() {
     await tursoBatch([
       {sql:`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,username TEXT NOT NULL,password TEXT NOT NULL DEFAULT '',must_reset_pw INTEGER NOT NULL DEFAULT 1,role TEXT NOT NULL DEFAULT 'student',campus TEXT NOT NULL DEFAULT 'SLO',avatar_color TEXT NOT NULL DEFAULT '#F4A7B9',points INTEGER NOT NULL DEFAULT 0,completion_count INTEGER NOT NULL DEFAULT 0,weekly_hours REAL NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),created_by TEXT)`},
       {sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT,points_value INTEGER NOT NULL DEFAULT 10,deadline TEXT,priority TEXT NOT NULL DEFAULT 'medium',task_type TEXT NOT NULL DEFAULT 'everyone',assign_to TEXT,campus TEXT NOT NULL DEFAULT 'SLO',collab_required INTEGER NOT NULL DEFAULT 2,created_by TEXT,created_by_role TEXT NOT NULL DEFAULT 'admin',requested_by TEXT,recurrence TEXT NOT NULL DEFAULT 'none',recurrence_interval INTEGER,recurrence_day INTEGER,slot_config TEXT,one_per_worker_day INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
-      {sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester TEXT NOT NULL DEFAULT 'current',occurrence_key TEXT NOT NULL DEFAULT 'once',slot_index INTEGER NOT NULL DEFAULT 0,solo_claimed INTEGER NOT NULL DEFAULT 0,override_reason TEXT,points_voided INTEGER NOT NULL DEFAULT 0,void_reason TEXT,pts_earned INTEGER NOT NULL DEFAULT 0,UNIQUE(task_id,user_id,occurrence_key))`},
+      {sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester TEXT NOT NULL DEFAULT 'current',occurrence_key TEXT NOT NULL DEFAULT 'once',slot_index INTEGER NOT NULL DEFAULT 0,solo_claimed INTEGER NOT NULL DEFAULT 0,override_reason TEXT,points_voided INTEGER NOT NULL DEFAULT 0,void_reason TEXT,pts_earned REAL NOT NULL DEFAULT 0,UNIQUE(task_id,user_id,occurrence_key))`},
       {sql:`CREATE TABLE IF NOT EXISTS task_rejections (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,rejected_by TEXT NOT NULL,reason TEXT NOT NULL,points_deducted INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
       {sql:`CREATE TABLE IF NOT EXISTS help_requests (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),resolved INTEGER NOT NULL DEFAULT 0,resolved_by TEXT,resolved_at TEXT)`},
       {sql:`CREATE TABLE IF NOT EXISTS point_adjustments (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',type TEXT NOT NULL DEFAULT 'bonus',points INTEGER NOT NULL,reason TEXT NOT NULL,issued_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
@@ -1499,7 +1500,7 @@ function renderList(listId,emptyId,labelId,userArr,showPts){
     const info=document.createElement('div');info.className='user-card-info';
     info.innerHTML=`<div class="user-card-name">${u.name}</div><div class="user-card-sub">@${u.username}${u.must_reset_pw?'  <span style="color:#C0294A;font-size:.72rem">🔑 must reset</span>':''}</div>`;
     card.appendChild(info);
-    if(showPts){const pts=document.createElement('div');pts.className='user-card-pts';pts.innerHTML=`<div class="num">${u.points}</div><div class="lbl">pts</div>`;card.appendChild(pts);}
+    if(showPts){const pts=document.createElement('div');pts.className='user-card-pts';pts.innerHTML=`<div class="num">${fmtPts(u.points)}</div><div class="lbl">pts</div>`;card.appendChild(pts);}
     else{const ct=document.createElement('div');ct.className='user-card-pts';ct.innerHTML=`<div class="num">${u.completion_count}</div><div class="lbl">done</div>`;card.appendChild(ct);}
     const btns=document.createElement('div');btns.className='user-card-btns';
     const rb=document.createElement('button');rb.className='btn btn-warn btn-xs';rb.textContent='🔑';rb.title='Reset password';rb.onclick=()=>forcePasswordReset(u.id);btns.appendChild(rb);
@@ -1565,7 +1566,7 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   if(task.points_value>0){
     const displayPts=currentUser?.role==='student'?scaledPoints(task,currentUser):task.points_value;
     const p=document.createElement('span');p.className='task-pts';
-    p.textContent=`+${displayPts}pt`;
+    p.textContent=`+${fmtPts(displayPts)}pt`;
     if(isAdmin) p.title=`Baseline: ${task.points_value}pt`;
     meta.appendChild(p);
   }
@@ -1835,7 +1836,7 @@ function renderStudentHero(){
   info.innerHTML=`<div class="user-hero-name serif">Hey, ${currentUser.name.split(' ')[0]}! 👋</div><div class="user-hero-sub">Rank #${rank} of ${sorted.length} · ${doneCount} completions this semester</div>`;
   hero.appendChild(info);
   const pbox=document.createElement('div');pbox.className='user-hero-pts';
-  pbox.innerHTML=`<div class="pts-big">${currentUser.points}</div><div class="pts-label">total points</div>`;
+  pbox.innerHTML=`<div class="pts-big">${fmtPts(currentUser.points)}</div><div class="pts-label">total points</div>`;
   hero.appendChild(pbox);
   const vis=myVisibleTasks();
   const pend=vis.filter(({task,slotIdx,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey));
@@ -1877,7 +1878,7 @@ function renderStudentHistory(){
     if(item.type==='comp'){
       const row=document.createElement('div');row.className=item.points_voided?'adj-row voided':'hist-row';
       const rl=recLabel(item.task);
-      row.innerHTML=`${item.points_voided?'<span class="adj-icon">⚠️</span>':'<span class="hist-check">✓</span>'}<span class="hist-title">${item.task.title}${rl?` <span style="color:var(--purple);font-size:.72rem">${rl}</span>`:''}</span><span class="hist-pts ${item.points_voided?'minus':''}">${item.points_voided?'voided':'+'+item.pts_earned+'pt'}</span><span class="hist-date">${fmtDate(item.completed_at)}</span>`;
+      row.innerHTML=`${item.points_voided?'<span class="adj-icon">⚠️</span>':'<span class="hist-check">✓</span>'}<span class="hist-title">${item.task.title}${rl?` <span style="color:var(--purple);font-size:.72rem">${rl}</span>`:''}</span><span class="hist-pts ${item.points_voided?'minus':''}">${item.points_voided?'voided':'+'+fmtPts(item.pts_earned)+'pt'}</span><span class="hist-date">${fmtDate(item.completed_at)}</span>`;
       if(item.points_voided&&item.void_reason){const vn=document.createElement('div');vn.style.cssText='width:100%;font-size:.75rem;color:#C0294A;margin-top:.25rem;font-style:italic';vn.textContent=`Reason: ${item.void_reason}`;row.appendChild(vn);}
       list.appendChild(row);
     } else {
@@ -1987,7 +1988,7 @@ function buildLb(containerId,userArr){
     const med=document.createElement('span');med.className=i<3?'lb-medal':'lb-rank';med.textContent=i<3?medals[i]:`${i+1}`;row.appendChild(med);
     row.appendChild(avatarEl(u,'avatar-sm'));
     const nm=document.createElement('span');nm.className='lb-name';nm.style.fontWeight=i===0?'700':'400';nm.textContent=u.name;row.appendChild(nm);
-    const pts=document.createElement('span');pts.className='lb-pts';pts.innerHTML=`${u.points}<span style="color:var(--faint);font-weight:400;font-size:.74rem"> pts</span>`;row.appendChild(pts);
+    const pts=document.createElement('span');pts.className='lb-pts';pts.innerHTML=`${fmtPts(u.points)}<span style="color:var(--faint);font-weight:400;font-size:.74rem"> pts</span>`;row.appendChild(pts);
     el.appendChild(row);
   });
 }
@@ -2609,7 +2610,7 @@ function launchConfetti(){
   if(confettiAnim)cancelAnimationFrame(confettiAnim);confettiAnim=requestAnimationFrame(draw);
 }
 let celebTimeout=null;
-function celebrate(task,pts){$('celeb-task-name').textContent=`"${task.title}"`;$('celeb-pts').textContent=`+${pts||task.points_value} pts ✨`;$('celebration').classList.add('show');launchConfetti();if(celebTimeout)clearTimeout(celebTimeout);celebTimeout=setTimeout(closeCelebration,4500);}
+function celebrate(task,pts){$('celeb-task-name').textContent=`"${task.title}"`;$('celeb-pts').textContent=`+${fmtPts(pts||task.points_value)} pts ✨`;$('celebration').classList.add('show');launchConfetti();if(celebTimeout)clearTimeout(celebTimeout);celebTimeout=setTimeout(closeCelebration,4500);}
 function closeCelebration(){$('celebration').classList.remove('show');clearTimeout(celebTimeout);}
  
 // ══════════════════════════════════════════════════════════════

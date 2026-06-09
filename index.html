@@ -494,10 +494,16 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               <div class="form-grid">
                 <div class="field"><label>Title *</label><input class="input" id="t-title" placeholder="Task title"/></div>
                 <div class="field"><label>Description</label><textarea class="input" id="t-desc" placeholder="Optional details…"></textarea></div>
-                <div class="form-row col2">
+                <div class="form-row col2" id="t-pts-row" style="display:none">
                   <div class="field"><label>Points</label><input class="input" id="t-pts" type="number" min="1" max="500" value="10"/></div>
                   <div class="field"><label>Priority</label>
                     <select class="input" id="t-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+                  </div>
+                </div>
+                <div class="form-row col2" id="t-no-pts-row">
+                  <div class="field"><label style="color:var(--faint)">Points</label><input class="input" id="t-pts-hidden" value="N/A — staff task" disabled style="color:var(--faint);background:var(--surface2)"/></div>
+                  <div class="field"><label>Priority</label>
+                    <select class="input" id="t-priority-staff"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
                   </div>
                 </div>
                 <div class="field"><label>Deadline (optional)</label><input class="input" id="t-deadline" type="date"/></div>
@@ -1510,9 +1516,8 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   main.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;main.appendChild(d);}
   const meta=document.createElement('div');meta.className='task-meta';
-  // Only show points if the task actually earns them (student/collab tasks)
-  const assigneeIsStudent=(()=>{if(task.task_type==='collaborative')return true;if(!effectiveAssign)return false;const au=users.find(u=>u.id===effectiveAssign);return au?.role==='student';})();
-  if(task.points_value&&(currentUser?.role==='student'||(isAdmin&&assigneeIsStudent))){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${task.points_value}pt`;meta.appendChild(p);}
+  // Show points only on tasks that actually have them (student/collab tasks have points_value > 0)
+  if(task.points_value>0){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${task.points_value}pt`;meta.appendChild(p);}
   if(effectiveType==='specific'&&effectiveAssign){const a=document.createElement('span');a.className='task-assign';a.textContent=`→ ${userMap[effectiveAssign]?.name||'?'}`;meta.appendChild(a);}
   if(task.deadline){const dl=document.createElement('span');dl.className=`task-deadline ${overdue?'overdue':'ok'}`;dl.textContent=(overdue?'⚠️ ':'📅 ')+fmtDate(task.deadline);meta.appendChild(dl);}
   if(task.task_type==='collaborative'){const cp=document.createElement('span');cp.className='collab-progress';cp.textContent=soloLocked?'🔒 Solo done':`${occComps.length}/${task.collab_required} done`;meta.appendChild(cp);}
@@ -1980,8 +1985,10 @@ function triggerPasswordReset(){if(profileUser)forcePasswordReset(profileUser.id
 // ══════════════════════════════════════════════════════════════
 function onAssignTypeChange(){
   const v=$('t-assign-type').value;
-  const showUser = v==='staff'||v==='student';
-  $('t-assign-user-field').classList.toggle('hidden', !showUser);
+  const isStudentTask=(v==='student'||v==='collaborative');
+  $('t-pts-row').style.display=isStudentTask?'':'none';
+  $('t-no-pts-row').style.display=isStudentTask?'none':'';
+  $('t-assign-user-field').classList.toggle('hidden', v==='collaborative');
   $('t-collab-field').classList.toggle('hidden', v!=='collaborative');
   if(v==='staff'){
     $('t-assign-user-label').textContent='Select Staff / Admin';
@@ -2060,6 +2067,9 @@ async function addTask(){
   const atype=$('t-assign-type').value;
   const assignTo=(atype==='staff'||atype==='student')?($('t-assign-user').value||null):null;
   if((atype==='staff'||atype==='student')&&!assignTo)return alert('Please select a person to assign this task to.');
+  const isStudentTask=(atype==='student'||atype==='collaborative');
+  const pts=isStudentTask?Number($('t-pts').value)||10:0;
+  const priority=isStudentTask?$('t-priority').value:$('t-priority-staff').value;
   const rec=$('t-recurrence').value;
   const recDay=rec==='weekly'?Number($('t-rec-weekday').value):rec==='monthly'?Number($('t-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('t-rec-interval').value):null;
@@ -2070,8 +2080,8 @@ async function addTask(){
   setSyncing(true);
   try{
     await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uuid(),title,($('t-desc').value||'').trim()||null,Number($('t-pts').value)||10,$('t-deadline').value||null,$('t-priority').value,dbTaskType,assignTo,activeCampus,Number($('t-collab-required').value)||2,currentUser.id,currentUser.role,rec,recInt,recDay,slotConfig,onePer]);
-    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='staff';$('t-one-per-worker').checked=false;
+      [uuid(),title,($('t-desc').value||'').trim()||null,pts,$('t-deadline').value||null,priority,dbTaskType,assignTo,activeCampus,Number($('t-collab-required').value)||2,currentUser.id,currentUser.role,rec,recInt,recDay,slotConfig,onePer]);
+    $('t-title').value='';$('t-desc').value='';$('t-pts').value='10';$('t-deadline').value='';$('t-priority').value='medium';$('t-priority-staff').value='medium';$('t-recurrence').value='none';$('t-assign-type').value='staff';$('t-one-per-worker').checked=false;
     onRecurrenceChange();onAssignTypeChange();newTaskSlots=[];renderSlotList('slot-list',newTaskSlots,'new');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
@@ -2108,6 +2118,8 @@ async function staffAddTask(){
   const atype=$('st-assign-type').value;
   if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){await _staffCreateGroupTasks('st');return;}
   const title=($('st-title').value||'').trim();if(!title)return alert('Please enter a task title.');
+  const isStudentAssign=(atype==='student'||atype==='group_all_students');
+  const stPts=isStudentAssign?Number($('st-pts').value)||10:0;
   let assignTo=null,taskType='specific',requestedBy=null;
   if(atype==='self'){
     assignTo=currentUser.id;
@@ -2125,7 +2137,7 @@ async function staffAddTask(){
   setSyncing(true);
   try{
     await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uuid(),title,($('st-desc').value||'').trim()||null,Number($('st-pts').value)||10,null,$('st-priority').value,taskType,assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
+      [uuid(),title,($('st-desc').value||'').trim()||null,stPts,null,$('st-priority').value,taskType,assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
     if(assignTo&&assignTo!==currentUser.id){await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});}
     $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-priority').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='self';
     onStaffRecurrenceChange();onStaffAssignTypeChange();await loadData();
@@ -2137,6 +2149,8 @@ async function staffAddTask2(){
   if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){await _staffCreateGroupTasks('st2');return;}
   const title=($('st2-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   let assignTo=null,requestedBy=null;
+  const isStuAssign2=(atype==='student'||atype==='group_all_students');
+  const st2Pts=isStuAssign2?Number($('st2-pts').value)||10:0;
   if(atype==='student'||atype==='peer'){
     assignTo=$('st2-assign-user').value||null;
     if(!assignTo)return alert('Please select a person.');
@@ -2152,7 +2166,7 @@ async function staffAddTask2(){
   setSyncing(true);
   try{
     await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uuid(),title,($('st2-desc').value||'').trim()||null,Number($('st2-pts').value)||10,null,$('st2-priority').value,'specific',assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
+      [uuid(),title,($('st2-desc').value||'').trim()||null,st2Pts,null,$('st2-priority').value,'specific',assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
     await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
     $('st2-title').value='';$('st2-desc').value='';$('st2-pts').value='10';$('st2-priority').value='medium';$('st2-recurrence').value='none';$('st2-assign-type').value='peer';
     onStaff2RecurrenceChange();onStaff2AssignTypeChange();await loadData();
@@ -2214,7 +2228,7 @@ async function completeTask(task,soloClai,slotIdx=0,oKey=null,overrideReason=nul
   try{
     const stmts=[{sql:'INSERT INTO completions(id,task_id,user_id,semester,occurrence_key,slot_index,solo_claimed,override_reason) VALUES(?,?,?,?,?,?,?,?)',
       args:[uuid(),task.id,currentUser.id,semester(),key,slotIdx,soloClai?1:0,overrideReason||null]}];
-    if(currentUser.role==='student') stmts.push({sql:'UPDATE users SET points=points+? WHERE id=?',args:[task.points_value,currentUser.id]});
+    if(currentUser.role==='student'&&task.points_value>0) stmts.push({sql:'UPDATE users SET points=points+? WHERE id=?',args:[task.points_value,currentUser.id]});
     else stmts.push({sql:'UPDATE users SET completion_count=completion_count+1 WHERE id=?',args:[currentUser.id]});
     await tursoBatch(stmts);
     if(currentUser.role==='student') currentUser.points=(currentUser.points||0)+task.points_value;

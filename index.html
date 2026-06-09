@@ -431,76 +431,60 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
   <div id="view-admin" class="hidden">
     <div class="page">
       <div class="tabs" id="admin-tabs">
-        <button class="tab active" onclick="adminTab('workers')">👤 Team</button>
-        <button class="tab" onclick="adminTab('staff')">🗂️ Staff</button>
-        <button class="tab" onclick="adminTab('tasks')">📋 Tasks</button>
+        <button class="tab active" onclick="adminTab('mytasks')">📋 My Tasks</button>
+        <button class="tab" onclick="adminTab('teamtasks')">🗂️ Team Tasks</button>
+        <button class="tab" onclick="adminTab('team')">👥 Team</button>
         <button class="tab" onclick="adminTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="adminTab('messages')">💌 Messages</button>
         <button class="tab" id="admin-notif-tab" onclick="adminTab('notifications')">🔔 Notifications</button>
         <button class="reset-btn" onclick="resetSemester()">🔄 Reset Semester</button>
       </div>
  
-      <!-- TEAM TAB (student workers) -->
-      <div id="admin-workers">
+      <!-- ADMIN MY TASKS -->
+      <div id="admin-mytasks">
         <div class="two-col">
           <div>
-            <h2 class="section-title">Student Workers — <span id="workers-campus-label" style="color:var(--campus)"></span></h2>
-            <div id="pitch-banner" class="alert-banner info hidden"><div class="alert-icon">⭐</div><div class="alert-body"><div class="alert-title">Bonus Pitches Awaiting Review</div><div id="pitch-items"></div></div></div>
-            <div id="worker-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
-            <p class="muted hidden" id="no-workers-msg" style="font-size:.88rem;margin-top:.75rem">No student workers yet.</p>
-            <div style="margin-top:2rem">
-              <h2 class="section-title" style="font-size:1.1rem">All Bonus Pitches</h2>
-              <div id="admin-pitch-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
-              <p class="muted hidden" id="no-pitches-admin" style="font-size:.88rem;margin-top:.5rem">No pitches yet.</p>
-            </div>
+            <div id="admin-hero" class="user-hero"></div>
+            <h2 class="section-title">My Tasks</h2>
+            <p class="muted" style="font-size:.84rem;margin-bottom:1rem">Tasks assigned directly to you.</p>
+            <div class="task-list" id="admin-my-tasks"></div>
+            <p class="muted hidden" id="no-admin-mytasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned to you.</p>
           </div>
           <div class="sticky-panel">
-            <div class="form-panel">
-              <h3>Add Student Worker</h3>
+            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
+              <h3>New Task (for me)</h3>
               <div class="form-grid">
-                <div class="field"><label>Name</label><input class="input" id="w-name" placeholder="Full name"/></div>
-                <div class="field"><label>Username</label><input class="input" id="w-username" placeholder="Login username"/></div>
-                <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-w"></div></div>
-                <div class="field"><label>Campus</label><div id="w-campus-display" style="color:var(--campus);font-weight:600;font-size:.9rem;padding:.3rem 0"></div></div>
-                <button class="btn btn-primary" onclick="addUser('student')">Add Student Worker</button>
+                <div class="field"><label>Title *</label><input class="input" id="at-title" placeholder="Task title"/></div>
+                <div class="field"><label>Description</label><textarea class="input" id="at-desc" placeholder="Optional details…"></textarea></div>
+                <div class="form-row col2">
+                  <div class="field"><label>Points</label><input class="input" id="at-pts" type="number" min="1" max="500" value="10"/></div>
+                  <div class="field"><label>Priority</label><select class="input" id="at-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+                </div>
+                <div class="field"><label>Recurrence</label>
+                  <select class="input" id="at-recurrence" onchange="onAdminRecurrenceChange()">
+                    <option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
+                  </select>
+                </div>
+                <div class="rec-options hidden" id="at-rec-weekly"><div class="field"><label>Resets every</label><select class="input" id="at-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
+                <div class="rec-options hidden" id="at-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="at-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
+                <div class="rec-options hidden" id="at-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="at-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
+                <button class="btn btn-primary" onclick="adminAddMyTask()">Create Task</button>
               </div>
             </div>
           </div>
         </div>
       </div>
- 
-      <!-- STAFF TAB -->
-      <div id="admin-staff" class="hidden">
+
+      <!-- ADMIN TEAM TASKS -->
+      <div id="admin-teamtasks" class="hidden">
         <div class="two-col">
           <div>
-            <h2 class="section-title">Staff — <span id="staff-campus-label" style="color:var(--campus)"></span></h2>
-            <div id="staff-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
-            <p class="muted hidden" id="no-staff-msg" style="font-size:.88rem;margin-top:.75rem">No staff members yet.</p>
-          </div>
-          <div class="sticky-panel">
-            <div class="form-panel">
-              <h3>Add Staff Member</h3>
-              <div class="form-grid">
-                <div class="field"><label>Name</label><input class="input" id="s-name" placeholder="Full name"/></div>
-                <div class="field"><label>Username</label><input class="input" id="s-username" placeholder="Login username"/></div>
-                <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-s"></div></div>
-                <button class="btn btn-primary" onclick="addUser('staff')">Add Staff Member</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
- 
-      <!-- TASKS TAB -->
-      <div id="admin-tasks" class="hidden">
-        <div class="two-col">
-          <div>
-            <h2 class="section-title">Tasks — <span id="tasks-campus-label" style="color:var(--campus)"></span></h2>
+            <h2 class="section-title">Team Tasks — <span id="tasks-campus-label" style="color:var(--campus)"></span></h2>
             <div id="help-banner" class="alert-banner warn hidden"><div class="alert-icon">🆘</div><div class="alert-body"><div class="alert-title">Help Requested</div><div id="help-items"></div></div></div>
-            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem;margin-top:.25rem">Staff & Admin Tasks</h3>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem;margin-top:.25rem">Staff &amp; Admin Tasks</h3>
             <div class="task-list" id="admin-task-list-peer"></div>
             <p class="muted hidden" id="no-tasks-admin-peer" style="font-size:.88rem;margin-top:.5rem">No staff/admin tasks yet.</p>
-            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--muted);margin-bottom:.75rem;margin-top:1.5rem">Delegated to Student Workers</h3>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--muted);margin-bottom:.75rem;margin-top:1.5rem">Student Worker Tasks</h3>
             <div class="task-list" id="admin-task-list-student"></div>
             <p class="muted hidden" id="no-tasks-admin-student" style="font-size:.88rem;margin-top:.5rem">No student worker tasks yet.</p>
           </div>
@@ -536,40 +520,62 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="field">
                   <label>Recurrence</label>
                   <select class="input" id="t-recurrence" onchange="onRecurrenceChange()">
-                    <option value="none">None (one-time)</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="interval">Every X Days</option>
+                    <option value="none">None (one-time)</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
                   </select>
                 </div>
-                <div class="rec-options hidden" id="rec-weekly-opts">
-                  <div class="field"><label>Resets every</label>
-                    <select class="input" id="t-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select>
-                  </div>
-                </div>
-                <div class="rec-options hidden" id="rec-monthly-opts">
-                  <div class="field"><label>Resets on day of month</label><input class="input" id="t-rec-monthday" type="number" min="1" max="28" value="1"/></div>
-                </div>
-                <div class="rec-options hidden" id="rec-interval-opts">
-                  <div class="field"><label>Every how many days?</label><input class="input" id="t-rec-interval" type="number" min="2" max="365" value="7"/></div>
-                </div>
-                <!-- Time slots -->
-                <div class="field">
-                  <label style="display:flex;align-items:center;justify-content:space-between">
-                    Time Slots (optional)
-                    <button type="button" class="btn btn-sky btn-xs" onclick="addSlot()">+ Add Slot</button>
-                  </label>
-                  <div id="slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div>
-                  <div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div>
-                </div>
-                <div class="field">
-                  <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-                    <input type="checkbox" id="t-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/>
-                    One completion per worker per day (override requires reason)
-                  </label>
-                </div>
+                <div class="rec-options hidden" id="rec-weekly-opts"><div class="field"><label>Resets every</label><select class="input" id="t-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
+                <div class="rec-options hidden" id="rec-monthly-opts"><div class="field"><label>Resets on day of month</label><input class="input" id="t-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
+                <div class="rec-options hidden" id="rec-interval-opts"><div class="field"><label>Every how many days?</label><input class="input" id="t-rec-interval" type="number" min="2" max="365" value="7"/></div></div>
+                <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addSlot()">+ Add Slot</button></label><div id="slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
+                <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="t-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
                 <button class="btn btn-primary" onclick="addTask()">Create Task</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN TEAM TAB (staff + students combined) -->
+      <div id="admin-team" class="hidden">
+        <div class="two-col">
+          <div>
+            <h2 class="section-title">Team — <span id="workers-campus-label" style="color:var(--campus)"></span></h2>
+            <div id="pitch-banner" class="alert-banner info hidden"><div class="alert-icon">⭐</div><div class="alert-body"><div class="alert-title">Bonus Pitches Awaiting Review</div><div id="pitch-items"></div></div></div>
+            <!-- Staff group -->
+            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--sky-dark);margin-bottom:.6rem">🗂️ Staff</h3>
+            <div id="staff-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
+            <p class="muted hidden" id="no-staff-msg" style="font-size:.88rem;margin-bottom:.75rem">No staff members yet.</p>
+            <!-- Students group -->
+            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.6rem;margin-top:1.5rem">🎓 Student Workers</h3>
+            <div id="worker-list" style="display:flex;flex-direction:column;gap:.7rem"></div>
+            <p class="muted hidden" id="no-workers-msg" style="font-size:.88rem;margin-top:.75rem">No student workers yet.</p>
+            <!-- All pitches -->
+            <div style="margin-top:2rem">
+              <h2 class="section-title" style="font-size:1.1rem">All Bonus Pitches</h2>
+              <div id="admin-pitch-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
+              <p class="muted hidden" id="no-pitches-admin" style="font-size:.88rem;margin-top:.5rem">No pitches yet.</p>
+            </div>
+          </div>
+          <div class="sticky-panel">
+            <!-- Add Staff -->
+            <div class="form-panel" style="margin-bottom:1rem">
+              <h3>Add Staff Member</h3>
+              <div class="form-grid">
+                <div class="field"><label>Name</label><input class="input" id="s-name" placeholder="Full name"/></div>
+                <div class="field"><label>Username</label><input class="input" id="s-username" placeholder="Login username"/></div>
+                <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-s"></div></div>
+                <button class="btn btn-sky" onclick="addUser('staff')">Add Staff Member</button>
+              </div>
+            </div>
+            <!-- Add Student Worker -->
+            <div class="form-panel">
+              <h3>Add Student Worker</h3>
+              <div class="form-grid">
+                <div class="field"><label>Name</label><input class="input" id="w-name" placeholder="Full name"/></div>
+                <div class="field"><label>Username</label><input class="input" id="w-username" placeholder="Login username"/></div>
+                <div class="field"><label>Avatar Color</label><div class="color-swatches" id="color-swatches-w"></div></div>
+                <div class="field"><label>Campus</label><div id="w-campus-display" style="color:var(--campus);font-weight:600;font-size:.9rem;padding:.3rem 0"></div></div>
+                <button class="btn btn-primary" onclick="addUser('student')">Add Student Worker</button>
               </div>
             </div>
           </div>
@@ -936,6 +942,12 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       </div>
       <div class="field"><label>Deadline</label><input class="input" id="edit-deadline" type="date"/></div>
       <div class="field" id="edit-collab-wrap" style="display:none"><label>Required completions</label><input class="input" id="edit-collab-required" type="number" min="2" max="20"/></div>
+      <div class="field">
+        <label>Reassign to</label>
+        <select class="input" id="edit-assign-user">
+          <option value="">— Keep current assignment —</option>
+        </select>
+      </div>
       <div class="field"><label>Recurrence</label>
         <select class="input" id="edit-recurrence" onchange="onEditRecurrenceChange()">
           <option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
@@ -1238,10 +1250,12 @@ const VIEWS=['landing','login-view','pw-reset-view','app-shell','db-error'];
 function showView(id){VIEWS.forEach(v=>$(v).classList.toggle('hidden',v!==id));}
  
 function adminTab(name){
-  const tabs=['workers','staff','tasks','leaderboard','messages','notifications'];
+  const tabs=['mytasks','teamtasks','team','leaderboard','messages','notifications'];
   tabs.forEach(t=>$(`admin-${t}`).classList.toggle('hidden',t!==name));
   $('admin-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='notifications') renderAdminNotifications();
+  if(name==='mytasks') renderAdminMyTasks();
+  if(name==='teamtasks') renderAdminTeamTasks();
 }
 function staffTab(name){
   const tabs=['mytasks','teamtasks','workers','leaderboard','messages','notifications'];
@@ -1383,7 +1397,8 @@ function renderAll(){
   if(!currentUser) return;
   updateNotifBadges();
   if(currentUser.role==='admin'){
-    renderUserLists();renderAdminTasks();renderAdminLb();renderAdminMessages();
+    renderUserLists();renderAdminHero();renderAdminMyTasks();renderAdminTeamTasks();
+    renderAdminLb();renderAdminMessages();
     renderPitchBanner('admin');renderHelpBanner('admin');renderAllPitches();populateAssignSelects();
   } else if(currentUser.role==='staff'){
     renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();renderStaffTasks();
@@ -1417,8 +1432,9 @@ function buildSwatches(containerId,colorVar,setter){
 // ══════════════════════════════════════════════════════════════
 function renderUserLists(){
   if(currentUser.role==='admin'){
-    renderList('worker-list','no-workers-msg','workers-campus-label',campusUsers('student'),true);
-    renderList('staff-list','no-staff-msg','staff-campus-label',campusUsers('staff'),false);
+    renderList('worker-list','no-workers-msg',null,campusUsers('student'),true);
+    renderList('staff-list','no-staff-msg',null,campusUsers('staff'),false);
+    const lbl=$('workers-campus-label');if(lbl)lbl.textContent=CAMPUS_LABELS[activeCampus]||'';
     const d=$('w-campus-display');if(d)d.textContent=`${CAMPUS_ICONS[activeCampus]||''} ${CAMPUS_LABELS[activeCampus]||''}`;
   } else {
     renderList('staff-worker-list','no-staff-workers','staff-workers-label',campusUsers('student'),true);
@@ -1508,7 +1524,7 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   const actions=document.createElement('div');actions.className='task-actions';
   if(isAdmin){
     const cnt=document.createElement('span');cnt.style.cssText='color:var(--muted);font-size:.75rem;background:var(--surface2);border-radius:6px;padding:.2rem .5rem;border:1px solid var(--border)';cnt.textContent=`${occComps.length} done`;actions.appendChild(cnt);
-    const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.onclick=()=>openEditModal(task);actions.appendChild(eb);
+    const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.title='Edit & reassign';eb.onclick=()=>openEditModal(task);actions.appendChild(eb);
     const del=document.createElement('button');del.className='btn btn-danger btn-xs';del.textContent='✕';del.onclick=()=>deleteTask(task.id);actions.appendChild(del);
   } else {
     if(myDone){
@@ -1548,6 +1564,62 @@ function buildTaskRows(task,isAdmin){
 // ══════════════════════════════════════════════════════════════
 // ADMIN RENDER
 // ══════════════════════════════════════════════════════════════
+function renderAdminHero(){
+  const hero=$('admin-hero');if(!hero)return;hero.innerHTML='';
+  hero.appendChild(avatarEl(currentUser,'avatar-xl'));
+  const info=document.createElement('div');info.className='user-hero-info';
+  const myDone=completions.filter(c=>c.user_id===currentUser.id).length;
+  info.innerHTML=`<div class="user-hero-name serif">Hey, ${currentUser.name.split(' ')[0]}! 👋</div><div class="user-hero-sub">Admin · ${CAMPUS_LABELS[activeCampus]} · ${currentUser.completion_count||0} tasks completed</div>`;
+  hero.appendChild(info);
+}
+
+function renderAdminMyTasks(){
+  const list=$('admin-my-tasks');if(!list)return;list.innerHTML='';
+  const mine=tasks.filter(t=>t.campus===activeCampus&&String(t.assign_to)===String(currentUser.id));
+  $('no-admin-mytasks').classList.toggle('hidden',mine.length>0);
+  mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
+}
+
+function renderAdminTeamTasks(){
+  const list_peer=$('admin-task-list-peer');
+  const list_stu=$('admin-task-list-student');
+  if(!list_peer||!list_stu)return;
+  list_peer.innerHTML='';list_stu.innerHTML='';
+  const ct=campusTasks();
+  const lbl=$('tasks-campus-label');if(lbl)lbl.textContent=CAMPUS_LABELS[activeCampus]||'';
+  const peerTasks=ct.filter(t=>{
+    if(!t.assign_to)return false;
+    const u=users.find(x=>x.id===t.assign_to);
+    return u&&(u.role==='staff'||u.role==='admin')&&t.assign_to!==currentUser.id;
+  });
+  const stuTasks=ct.filter(t=>{
+    if(t.task_type==='collaborative')return true;
+    if(!t.assign_to)return false;
+    const u=users.find(x=>x.id===t.assign_to);
+    return u&&u.role==='student';
+  });
+  $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
+  $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
+  peerTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>list_peer.appendChild(r)));
+  stuTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>list_stu.appendChild(r)));
+}
+
+function onAdminRecurrenceChange(){const v=$('at-recurrence').value;$('at-rec-weekly').classList.toggle('hidden',v!=='weekly');$('at-rec-monthly').classList.toggle('hidden',v!=='monthly');$('at-rec-interval').classList.toggle('hidden',v!=='interval');}
+
+async function adminAddMyTask(){
+  const title=($('at-title').value||'').trim();if(!title)return alert('Please enter a task title.');
+  const rec=$('at-recurrence').value;
+  const recDay=rec==='weekly'?Number($('at-rec-weekday').value):rec==='monthly'?Number($('at-rec-monthday').value):null;
+  const recInt=rec==='interval'?Number($('at-rec-interval-val').value):null;
+  setSyncing(true);
+  try{
+    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),title,($('at-desc').value||'').trim()||null,Number($('at-pts').value)||10,null,$('at-priority').value,'specific',currentUser.id,activeCampus,2,currentUser.id,'admin',rec,recInt,recDay]);
+    $('at-title').value='';$('at-desc').value='';$('at-pts').value='10';$('at-priority').value='medium';$('at-recurrence').value='none';
+    onAdminRecurrenceChange();await loadData();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
 function renderAdminTasks(){
   const peerList=$('admin-task-list-peer'),stuList=$('admin-task-list-student');
   if(!peerList||!stuList)return;
@@ -2101,6 +2173,13 @@ function openEditModal(task){
   $('edit-recurrence').value=task.recurrence||'none';$('edit-rec-weekday').value=task.recurrence_day??1;
   $('edit-rec-monthday').value=task.recurrence_day??1;$('edit-rec-interval-val').value=task.recurrence_interval??7;
   $('edit-collab-wrap').style.display=task.task_type==='collaborative'?'':'none';$('edit-collab-required').value=task.collab_required||2;
+  // Populate reassign dropdown
+  const eaSel=$('edit-assign-user');
+  if(eaSel){
+    eaSel.innerHTML='<option value="">— Keep current assignment —</option>';
+    const allU=[...campusUsers('admin'),...campusUsers('staff'),...campusUsers('student')];
+    allU.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===task.assign_to)o.selected=true;eaSel.appendChild(o);});
+  }
   $('edit-one-per-worker').checked=!!task.one_per_worker_day;onEditRecurrenceChange();
   editTaskSlots=parsedSlots(task);renderSlotList('edit-slot-list',editTaskSlots,'edit');
   $('edit-modal').classList.add('show');
@@ -2115,8 +2194,9 @@ async function saveEdit(){
   const slotConfig=editTaskSlots.length?JSON.stringify(editTaskSlots):null;
   setSyncing(true);
   try{
-    await tursoFetch('UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=?,slot_config=?,one_per_worker_day=? WHERE id=?',
-      [($('edit-title').value||'').trim(),($('edit-desc').value||'').trim()||null,newPts,$('edit-deadline').value||null,$('edit-priority').value,Number($('edit-collab-required').value)||2,rec,recInt,recDay,slotConfig,$('edit-one-per-worker').checked?1:0,editingTaskId]);
+    const newAssignTo=$('edit-assign-user')?.value||null;
+    await tursoFetch('UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=?,slot_config=?,one_per_worker_day=?,assign_to=COALESCE(NULLIF(?,\'\'),assign_to) WHERE id=?',
+      [($('edit-title').value||'').trim(),($('edit-desc').value||'').trim()||null,newPts,$('edit-deadline').value||null,$('edit-priority').value,Number($('edit-collab-required').value)||2,rec,recInt,recDay,slotConfig,$('edit-one-per-worker').checked?1:0,newAssignTo||'',editingTaskId]);
     const oldTask=tasks.find(t=>t.id===editingTaskId),oldPts=oldTask?.points_value||10,diff=newPts-oldPts;
     if(diff!==0){
       const adj={};completions.filter(c=>c.task_id===editingTaskId&&!c.points_voided).forEach(c=>{adj[c.user_id]=(adj[c.user_id]||0)+diff;});

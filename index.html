@@ -159,6 +159,8 @@ textarea.input{resize:vertical;min-height:68px;}
 .lb-rank{width:28px;text-align:center;color:var(--muted);font-size:.85rem;flex-shrink:0;}
 .lb-name{flex:1;font-size:.9rem;color:var(--text);}
 .lb-pts{color:#C88A00;font-weight:700;font-size:.92rem;}
+.lb-row{display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid var(--border);}
+.lb-row:last-child{border-bottom:none;}
  
 /* ── USER / WORKER CARDS ── */
 .user-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r-lg);padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.9rem;transition:all .15s;box-shadow:0 1px 4px rgba(244,167,185,.08);cursor:pointer;}
@@ -1216,24 +1218,12 @@ const campusUsers=role=>users.filter(u=>u.campus===activeCampus&&u.role===role&&
 const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus);
 const setCampusAccent=c=>document.documentElement.style.setProperty('--campus',CAMPUS_COLORS[c]||'#F4A7B9');
 
-// ── POINT SCALING ──────────────────────────────────────────────
-// Returns the median weekly hours across all active students on campus
-function campusMedianHours(){
-  const hrs=campusUsers('student').map(u=>u.weekly_hours).filter(h=>h>0).sort((a,b)=>a-b);
-  if(!hrs.length) return 0;
-  const mid=Math.floor(hrs.length/2);
-  return hrs.length%2===0?(hrs[mid-1]+hrs[mid])/2:hrs[mid];
-}
-
-// Returns the scaled point value for a given task and user
-// Admin/staff always see the raw baseline. Students see their scaled value.
-function scaledPoints(task,user){
-  if(!user||user.role!=='student') return task.points_value||0;
-  if(!task.points_value||task.points_value<=0) return 0;
-  const median=campusMedianHours();
-  if(!median||!user.weekly_hours) return task.points_value; // no hours set = baseline
-  const scale=median/user.weekly_hours;
-  return Math.max(0.01, Math.round(task.points_value * scale * 100) / 100);
+// ── POINTS PER HOUR ────────────────────────────────────────────
+// Leaderboard ranks by pts/hr efficiency rate. Raw points accumulate
+// normally — everyone earns the same points per task.
+function ptsPerHour(user){
+  if(!user||!user.weekly_hours||user.weekly_hours<=0) return 0;
+  return Math.round((user.points/user.weekly_hours)*100)/100;
 }
  
 // ══════════════════════════════════════════════════════════════
@@ -1562,12 +1552,9 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   main.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;main.appendChild(d);}
   const meta=document.createElement('div');meta.className='task-meta';
-  // Points: students see their scaled value, admin/staff see baseline (only on student tasks)
   if(task.points_value>0){
-    const displayPts=currentUser?.role==='student'?scaledPoints(task,currentUser):task.points_value;
     const p=document.createElement('span');p.className='task-pts';
-    p.textContent=`+${fmtPts(displayPts)}pt`;
-    if(isAdmin) p.title=`Baseline: ${task.points_value}pt`;
+    p.textContent=`+${fmtPts(task.points_value)}pt`;
     meta.appendChild(p);
   }
   if(effectiveType==='specific'&&effectiveAssign){const a=document.createElement('span');a.className='task-assign';a.textContent=`→ ${userMap[effectiveAssign]?.name||'?'}`;meta.appendChild(a);}
@@ -1830,13 +1817,14 @@ function renderStudentHero(){
   const hero=$('student-hero');if(!hero)return;hero.innerHTML='';
   hero.appendChild(avatarEl(currentUser,'avatar-xl'));
   const info=document.createElement('div');info.className='user-hero-info';
-  const sorted=[...campusUsers('student')].sort((a,b)=>b.points-a.points);
+  const sorted=[...campusUsers('student')].map(u=>({...u,rate:ptsPerHour(u)})).sort((a,b)=>b.rate-a.rate||b.points-a.points);
   const rank=sorted.findIndex(s=>s.id===currentUser.id)+1;
+  const myRate=ptsPerHour(currentUser);
   const doneCount=completions.filter(c=>c.user_id===currentUser.id).length;
-  info.innerHTML=`<div class="user-hero-name serif">Hey, ${currentUser.name.split(' ')[0]}! 👋</div><div class="user-hero-sub">Rank #${rank} of ${sorted.length} · ${doneCount} completions this semester</div>`;
+  info.innerHTML=`<div class="user-hero-name serif">Hey, ${currentUser.name.split(' ')[0]}! 👋</div><div class="user-hero-sub">Rank #${rank} of ${sorted.length} · ${fmtPts(myRate)} pts/hr · ${doneCount} completions</div>`;
   hero.appendChild(info);
   const pbox=document.createElement('div');pbox.className='user-hero-pts';
-  pbox.innerHTML=`<div class="pts-big">${fmtPts(currentUser.points)}</div><div class="pts-label">total points</div>`;
+  pbox.innerHTML=`<div class="pts-big">${fmtPts(currentUser.points)}</div><div class="pts-label">total points</div><div style="color:var(--pink);font-size:.78rem;font-weight:700;margin-top:.2rem">${fmtPts(myRate)} pts/hr</div>`;
   hero.appendChild(pbox);
   const vis=myVisibleTasks();
   const pend=vis.filter(({task,slotIdx,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey));
@@ -1981,14 +1969,19 @@ async function markRead(notifId){
 function buildLb(containerId,userArr){
   const el=$(containerId);if(!el)return;el.innerHTML='';
   const medals=['🥇','🥈','🥉'];
-  const sorted=[...userArr].sort((a,b)=>b.points-a.points);
+  // Sort by pts/hr efficiency rate; fall back to raw points if no hours set
+  const sorted=[...userArr].map(u=>({...u,rate:ptsPerHour(u)||0})).sort((a,b)=>b.rate-a.rate||b.points-a.points);
   if(!sorted.length){el.innerHTML='<p class="muted" style="font-size:.88rem">No entries yet.</p>';return;}
   sorted.forEach((u,i)=>{
     const row=document.createElement('div');row.className='lb-row';
     const med=document.createElement('span');med.className=i<3?'lb-medal':'lb-rank';med.textContent=i<3?medals[i]:`${i+1}`;row.appendChild(med);
     row.appendChild(avatarEl(u,'avatar-sm'));
-    const nm=document.createElement('span');nm.className='lb-name';nm.style.fontWeight=i===0?'700':'400';nm.textContent=u.name;row.appendChild(nm);
-    const pts=document.createElement('span');pts.className='lb-pts';pts.innerHTML=`${fmtPts(u.points)}<span style="color:var(--faint);font-weight:400;font-size:.74rem"> pts</span>`;row.appendChild(pts);
+    const nm=document.createElement('span');nm.className='lb-name';nm.style.fontWeight=i===0?'700':'400';
+    nm.innerHTML=`${u.name} <span style="color:var(--faint);font-size:.74rem;font-weight:400">${u.weekly_hours?u.weekly_hours+'hrs/wk':''}</span>`;
+    row.appendChild(nm);
+    const ptsEl=document.createElement('div');ptsEl.style.cssText='text-align:right;flex-shrink:0';
+    ptsEl.innerHTML=`<div class="lb-pts">${fmtPts(u.rate)} <span style="color:var(--faint);font-weight:400;font-size:.72rem">pts/hr</span></div><div style="color:var(--faint);font-size:.72rem">${fmtPts(u.points)} total</div>`;
+    row.appendChild(ptsEl);
     el.appendChild(row);
   });
 }
@@ -2299,16 +2292,16 @@ async function completeTask(task,soloClai,slotIdx=0,oKey=null,overrideReason=nul
   const key=oKey||occurrenceKey(task,slotIdx);
   setSyncing(true);
   try{
+    const rawPts=task.points_value||0;
     const stmts=[{sql:'INSERT INTO completions(id,task_id,user_id,semester,occurrence_key,slot_index,solo_claimed,override_reason,pts_earned) VALUES(?,?,?,?,?,?,?,?,?)',
-      args:[uuid(),task.id,currentUser.id,semester(),key,slotIdx,soloClai?1:0,overrideReason||null,ptsToAward]}];
-    const ptsToAward=scaledPoints(task,currentUser);
-    if(currentUser.role==='student'&&ptsToAward>0) stmts.push({sql:'UPDATE users SET points=points+? WHERE id=?',args:[ptsToAward,currentUser.id]});
+      args:[uuid(),task.id,currentUser.id,semester(),key,slotIdx,soloClai?1:0,overrideReason||null,rawPts]}];
+    if(currentUser.role==='student'&&rawPts>0) stmts.push({sql:'UPDATE users SET points=points+? WHERE id=?',args:[rawPts,currentUser.id]});
     else stmts.push({sql:'UPDATE users SET completion_count=completion_count+1 WHERE id=?',args:[currentUser.id]});
     await tursoBatch(stmts);
-    if(currentUser.role==='student') currentUser.points=(currentUser.points||0)+ptsToAward;
+    if(currentUser.role==='student') currentUser.points=(currentUser.points||0)+rawPts;
     else currentUser.completion_count=(currentUser.completion_count||0)+1;
     if(overrideReason){await sendNotification({to_campus:activeCampus,to_role:'admin',type:'override',title:'One-per-day Override',body:`${currentUser.name} completed extra slot of "${task.title}". Reason: ${overrideReason}`,icon:'⚠️',campus:activeCampus});}
-    await loadData();if(currentUser.role==='student')celebrate(task,ptsToAward);
+    await loadData();if(currentUser.role==='student')celebrate(task,rawPts);
   }catch(e){if(e.message?.includes('UNIQUE'))alert('Already completed this slot!');else alert('Error: '+e.message);}setSyncing(false);
 }
  
@@ -2532,8 +2525,8 @@ function openProfileModal(user){
   $('profile-hours-row').style.display=isStudent?'':'none';
   if(isStudent){
     $('profile-hours-input').value=user.weekly_hours||'';
-    const median=campusMedianHours();
-    $('profile-hours-note').textContent=median?`Median on campus: ${median}hrs/wk`:'Set to scale points fairly';
+    const rate=ptsPerHour(user);
+    $('profile-hours-note').textContent=rate?`Current rate: ${fmtPts(rate)} pts/hr`:'Set to enable pts/hr leaderboard ranking';
   }
   $('profile-reset-pw-btn').style.display=(currentUser.role==='admin'||(currentUser.role==='staff'&&isStudent))?'':'none';
   const comps=completions.filter(c=>c.user_id===user.id).map(c=>({...c,task:tasks.find(t=>t.id===c.task_id)})).filter(c=>c.task).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at));
@@ -2574,7 +2567,7 @@ async function saveProfileHours(){
   try{
     await tursoFetch('UPDATE users SET weekly_hours=? WHERE id=?',[hrs,profileUser.id]);
     $('profile-hours-note').textContent='✓ Saved!';
-    setTimeout(()=>{$('profile-hours-note').textContent=`Median on campus: ${campusMedianHours()}hrs/wk`;},2000);
+    setTimeout(()=>{$('profile-hours-note').textContent=`Current rate: ${fmtPts(ptsPerHour(profileUser))} pts/hr`;},2000);
     await loadData();
     // Update the in-memory profileUser so median recalculates immediately
     profileUser=users.find(u=>u.id===profileUser.id)||profileUser;

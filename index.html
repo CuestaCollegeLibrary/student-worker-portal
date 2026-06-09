@@ -643,7 +643,6 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <button class="tab active" onclick="staffTab('mytasks')">📋 My Tasks</button>
         <button class="tab" onclick="staffTab('teamtasks')">🗂️ Team Tasks</button>
         <button class="tab" onclick="staffTab('workers')">👤 Student Workers</button>
-        <button class="tab" onclick="staffTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="staffTab('messages')">💌 Messages</button>
         <button class="tab" id="staff-notif-tab" onclick="staffTab('notifications')">🔔 Notifications</button>
       </div>
@@ -665,8 +664,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="field"><label>Title *</label><input class="input" id="st-title" placeholder="Task title"/></div>
                 <div class="field"><label>Description</label><textarea class="input" id="st-desc" placeholder="Optional details…"></textarea></div>
                 <div class="form-row col2">
-                  <div class="field"><label>Points</label><input class="input" id="st-pts" type="number" min="1" max="500" value="10"/></div>
-                  <div class="field"><label>Priority</label>
+                  <div class="field" style="grid-column:1/-1"><label>Priority</label>
                     <select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
                   </div>
                 </div>
@@ -788,11 +786,8 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       </div>
  
       <!-- STAFF TASKS TAB -->
-      <!-- STAFF LEADERBOARD -->
-      <div id="staff-leaderboard" class="hidden">
-        <h2 class="section-title">Student Leaderboard — <span id="staff-lb-label" style="color:var(--campus)"></span></h2>
-        <div style="max-width:460px"><div class="card" id="staff-lb"></div></div>
-      </div>
+      <!-- Staff leaderboard removed — only students compete -->
+      <div id="staff-leaderboard" class="hidden" style="display:none!important"></div>
  
       <!-- STAFF MESSAGES -->
       <div id="staff-messages" class="hidden">
@@ -1258,7 +1253,7 @@ function adminTab(name){
   if(name==='teamtasks') renderAdminTeamTasks();
 }
 function staffTab(name){
-  const tabs=['mytasks','teamtasks','workers','leaderboard','messages','notifications'];
+  const tabs=['mytasks','teamtasks','workers','messages','notifications'];
   tabs.forEach(t=>$(`staff-${t}`).classList.toggle('hidden',t!==name));
   $('staff-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='mytasks') renderStaffMyTasks();
@@ -1402,7 +1397,7 @@ function renderAll(){
     renderPitchBanner('admin');renderHelpBanner('admin');renderAllPitches();populateAssignSelects();
   } else if(currentUser.role==='staff'){
     renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();renderStaffTasks();
-    renderStaffLb();renderStaffMessages();renderPitchBanner('staff');renderHelpBanner('staff');populateAssignSelects();
+    renderStaffMessages();renderPitchBanner('staff');renderHelpBanner('staff');populateAssignSelects();
   } else {
     renderStudentHero();renderStudentTasks();renderStudentHistory();renderStudentLb();renderStudentPitches();
   }
@@ -1515,7 +1510,9 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   main.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;main.appendChild(d);}
   const meta=document.createElement('div');meta.className='task-meta';
-  if(task.points_value&&currentUser?.role==='student'){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${task.points_value}pt`;meta.appendChild(p);}
+  // Only show points if the task actually earns them (student/collab tasks)
+  const assigneeIsStudent=(()=>{if(task.task_type==='collaborative')return true;if(!effectiveAssign)return false;const au=users.find(u=>u.id===effectiveAssign);return au?.role==='student';})();
+  if(task.points_value&&(currentUser?.role==='student'||(isAdmin&&assigneeIsStudent))){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${task.points_value}pt`;meta.appendChild(p);}
   if(effectiveType==='specific'&&effectiveAssign){const a=document.createElement('span');a.className='task-assign';a.textContent=`→ ${userMap[effectiveAssign]?.name||'?'}`;meta.appendChild(a);}
   if(task.deadline){const dl=document.createElement('span');dl.className=`task-deadline ${overdue?'overdue':'ok'}`;dl.textContent=(overdue?'⚠️ ':'📅 ')+fmtDate(task.deadline);meta.appendChild(dl);}
   if(task.task_type==='collaborative'){const cp=document.createElement('span');cp.className='collab-progress';cp.textContent=soloLocked?'🔒 Solo done':`${occComps.length}/${task.collab_required} done`;meta.appendChild(cp);}

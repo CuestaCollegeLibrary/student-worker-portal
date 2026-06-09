@@ -669,11 +669,6 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               <div class="form-grid">
                 <div class="field"><label>Title *</label><input class="input" id="st-title" placeholder="Task title"/></div>
                 <div class="field"><label>Description</label><textarea class="input" id="st-desc" placeholder="Optional details…"></textarea></div>
-                <div class="form-row col2">
-                  <div class="field" style="grid-column:1/-1"><label>Priority</label>
-                    <select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
-                  </div>
-                </div>
                 <div class="field">
                   <label>Assign to</label>
                   <select class="input" id="st-assign-type" onchange="onStaffAssignTypeChange()">
@@ -693,15 +688,26 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                   </select>
                 </div>
                 <div class="field hidden" id="st-assign-user-field"><label id="st-assign-user-label">Select person</label><select class="input" id="st-assign-user"><option value="">— Select —</option></select></div>
+                <!-- Points row: shown only when assigning to students -->
+                <div class="form-row col2 hidden" id="st-pts-row">
+                  <div class="field"><label>Points</label><input class="input" id="st-pts" type="number" min="1" max="500" value="10"/></div>
+                  <div class="field"><label>Priority</label><select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+                </div>
+                <div class="form-row col2" id="st-no-pts-row">
+                  <div class="field"><label style="color:var(--faint)">Points</label><input class="input" value="N/A — staff task" disabled style="color:var(--faint);background:var(--surface2)"/></div>
+                  <div class="field"><label>Priority</label><select class="input" id="st-priority-np"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+                </div>
+                <div class="field"><label>Deadline (optional)</label><input class="input" id="st-deadline" type="date"/></div>
                 <div class="field"><label>Recurrence</label>
                   <select class="input" id="st-recurrence" onchange="onStaffRecurrenceChange()">
-                    <option value="none">None</option><option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
+                    <option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
                   </select>
                 </div>
                 <div class="rec-options hidden" id="st-rec-weekly"><div class="field"><label>Resets every</label><select class="input" id="st-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
                 <div class="rec-options hidden" id="st-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="st-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
                 <div class="rec-options hidden" id="st-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
+                <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addStSlot()">+ Add Slot</button></label><div id="st-slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
+                <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="st-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
                 <button class="btn btn-primary" onclick="staffAddTask()">Create Task</button>
               </div>
             </div>
@@ -730,12 +736,6 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
               <div class="form-grid">
                 <div class="field"><label>Title *</label><input class="input" id="st2-title" placeholder="Task title"/></div>
                 <div class="field"><label>Description</label><textarea class="input" id="st2-desc" placeholder="Optional details…"></textarea></div>
-                <div class="form-row col2">
-                  <div class="field"><label>Points</label><input class="input" id="st2-pts" type="number" min="1" max="500" value="10"/></div>
-                  <div class="field"><label>Priority</label>
-                    <select class="input" id="st2-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
-                  </div>
-                </div>
                 <div class="field">
                   <label>Assign to</label>
                   <select class="input" id="st2-assign-type" onchange="onStaff2AssignTypeChange()">
@@ -752,15 +752,26 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                   </select>
                 </div>
                 <div class="field hidden" id="st2-assign-user-field"><label id="st2-assign-user-label">Select person</label><select class="input" id="st2-assign-user"><option value="">— Select —</option></select></div>
+                <!-- Points row: shown only when assigning to students -->
+                <div class="form-row col2 hidden" id="st2-pts-row">
+                  <div class="field"><label>Points</label><input class="input" id="st2-pts" type="number" min="1" max="500" value="10"/></div>
+                  <div class="field"><label>Priority</label><select class="input" id="st2-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+                </div>
+                <div class="form-row col2" id="st2-no-pts-row">
+                  <div class="field"><label style="color:var(--faint)">Points</label><input class="input" value="N/A — staff task" disabled style="color:var(--faint);background:var(--surface2)"/></div>
+                  <div class="field"><label>Priority</label><select class="input" id="st2-priority-np"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+                </div>
+                <div class="field"><label>Deadline (optional)</label><input class="input" id="st2-deadline" type="date"/></div>
                 <div class="field"><label>Recurrence</label>
                   <select class="input" id="st2-recurrence" onchange="onStaff2RecurrenceChange()">
-                    <option value="none">None</option><option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
+                    <option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
                   </select>
                 </div>
                 <div class="rec-options hidden" id="st2-rec-weekly"><div class="field"><label>Resets every</label><select class="input" id="st2-rec-weekday"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
                 <div class="rec-options hidden" id="st2-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="st2-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
                 <div class="rec-options hidden" id="st2-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st2-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
+                <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addSt2Slot()">+ Add Slot</button></label><div id="st2-slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
+                <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="st2-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
                 <button class="btn btn-primary" onclick="staffAddTask2()">Create Task</button>
               </div>
             </div>
@@ -2001,10 +2012,16 @@ function onAssignTypeChange(){
   }
 }
 function onRecurrenceChange(){const v=$('t-recurrence').value;$('rec-weekly-opts').classList.toggle('hidden',v!=='weekly');$('rec-monthly-opts').classList.toggle('hidden',v!=='monthly');$('rec-interval-opts').classList.toggle('hidden',v!=='interval');}
+function _isStudentTarget(v){return v==='student'||v==='group_all_students';}
+function _isGroupTarget(v){return v.startsWith('group_');}
+
 function onStaffAssignTypeChange(){
   const v=$('st-assign-type').value;
   const showUser=['student','peer','request'].includes(v);
+  const isStudent=_isStudentTarget(v);
   $('st-assign-user-field').classList.toggle('hidden',!showUser);
+  $('st-pts-row').classList.toggle('hidden',!isStudent);
+  $('st-no-pts-row').classList.toggle('hidden',isStudent);
   if(!showUser)return;
   const sel=$('st-assign-user'),lbl=$('st-assign-user-label');
   sel.innerHTML='<option value="">— Select —</option>';
@@ -2016,10 +2033,14 @@ function onStaffAssignTypeChange(){
     [...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser.id).forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
   }
 }
+
 function onStaff2AssignTypeChange(){
   const v=$('st2-assign-type').value;
   const showUser=['student','peer','request'].includes(v);
+  const isStudent=_isStudentTarget(v);
   $('st2-assign-user-field').classList.toggle('hidden',!showUser);
+  $('st2-pts-row').classList.toggle('hidden',!isStudent);
+  $('st2-no-pts-row').classList.toggle('hidden',isStudent);
   if(!showUser)return;
   const sel=$('st2-assign-user'),lbl=$('st2-assign-user-label');
   sel.innerHTML='<option value="">— Select —</option>';
@@ -2044,7 +2065,7 @@ function renderSlotList(containerId,slotsArr,prefix){
   const c=$(containerId);if(!c)return;c.innerHTML='';
   slotsArr.forEach((slot,i)=>{
     const box=document.createElement('div');box.className='slot-box';
-    box.innerHTML=`<div class="slot-box-header"><span class="slot-box-label">${slot.label||`Slot ${i+1}`}</span><button type="button" class="btn btn-danger btn-xs" onclick="${prefix==='new'?'removeSlot':'removeEditSlot'}(${i})">✕</button></div>`;
+    box.innerHTML=`<div class="slot-box-header"><span class="slot-box-label">${slot.label||`Slot ${i+1}`}</span><button type="button" class="btn btn-danger btn-xs" onclick="${prefix==='new'?'removeSlot':prefix==='edit'?'removeEditSlot':prefix==='st'?'removeStSlot':'removeSt2Slot'}(${i})">✕</button></div>`;
     const row1=document.createElement('div');row1.style.cssText='display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem';
     const s=document.createElement('input');s.type='time';s.className='input';s.style.flex='1';s.value=slot.start;s.onchange=e=>{slotsArr[i].start=e.target.value;};
     const sp=document.createElement('span');sp.style.cssText='color:var(--muted);font-size:.82rem;flex-shrink:0';sp.textContent='to';
@@ -2114,33 +2135,35 @@ async function _staffCreateGroupTasks(prefix){
   await loadData();setSyncing(false);
 }
 
+let stTaskSlots=[], st2TaskSlots=[];
+function addStSlot(){stTaskSlots.push({start:'',end:'',task_type:'everyone',assign_to:null,label:stTaskSlots.length===0?'Morning':'Evening'});renderSlotList('st-slot-list',stTaskSlots,'st');}
+function removeStSlot(idx){stTaskSlots.splice(idx,1);renderSlotList('st-slot-list',stTaskSlots,'st');}
+function addSt2Slot(){st2TaskSlots.push({start:'',end:'',task_type:'everyone',assign_to:null,label:st2TaskSlots.length===0?'Morning':'Evening'});renderSlotList('st2-slot-list',st2TaskSlots,'st2');}
+function removeSt2Slot(idx){st2TaskSlots.splice(idx,1);renderSlotList('st2-slot-list',st2TaskSlots,'st2');}
+
 async function staffAddTask(){
   const atype=$('st-assign-type').value;
   if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){await _staffCreateGroupTasks('st');return;}
   const title=($('st-title').value||'').trim();if(!title)return alert('Please enter a task title.');
-  const isStudentAssign=(atype==='student'||atype==='group_all_students');
-  const stPts=isStudentAssign?Number($('st-pts').value)||10:0;
+  const isStudent=_isStudentTarget(atype);
+  const pts=isStudent?Number($('st-pts').value)||10:0;
+  const priority=isStudent?$('st-priority').value:$('st-priority-np').value;
   let assignTo=null,taskType='specific',requestedBy=null;
-  if(atype==='self'){
-    assignTo=currentUser.id;
-  } else if(atype==='student'||atype==='peer'){
-    assignTo=$('st-assign-user').value||null;
-    if(!assignTo)return alert('Please select a person.');
-  } else if(atype==='request'){
-    assignTo=$('st-assign-user').value||null;
-    if(!assignTo)return alert('Please select a person.');
-    requestedBy=currentUser.id;
-  }
+  if(atype==='self'){assignTo=currentUser.id;}
+  else if(atype==='student'||atype==='peer'){assignTo=$('st-assign-user').value||null;if(!assignTo)return alert('Please select a person.');}
+  else if(atype==='request'){assignTo=$('st-assign-user').value||null;if(!assignTo)return alert('Please select a person.');requestedBy=currentUser.id;}
   const rec=$('st-recurrence').value;
   const recDay=rec==='weekly'?Number($('st-rec-weekday').value):rec==='monthly'?Number($('st-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('st-rec-interval-val').value):null;
+  const slotConfig=stTaskSlots.length?JSON.stringify(stTaskSlots):null;
+  const onePer=$('st-one-per-worker').checked?1:0;
   setSyncing(true);
   try{
-    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uuid(),title,($('st-desc').value||'').trim()||null,stPts,null,$('st-priority').value,taskType,assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
+    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),title,($('st-desc').value||'').trim()||null,pts,$('st-deadline').value||null,priority,taskType,assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay,slotConfig,onePer]);
     if(assignTo&&assignTo!==currentUser.id){await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});}
-    $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-priority').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='self';
-    onStaffRecurrenceChange();onStaffAssignTypeChange();await loadData();
+    $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-deadline').value='';$('st-priority').value='medium';$('st-priority-np').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='self';$('st-one-per-worker').checked=false;
+    onStaffRecurrenceChange();onStaffAssignTypeChange();stTaskSlots=[];renderSlotList('st-slot-list',stTaskSlots,'st');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
 
@@ -2148,30 +2171,28 @@ async function staffAddTask2(){
   const atype=$('st2-assign-type').value;
   if(atype==='group_all_staff'||atype==='group_all_students'||atype==='group_everyone'){await _staffCreateGroupTasks('st2');return;}
   const title=($('st2-title').value||'').trim();if(!title)return alert('Please enter a task title.');
+  const isStudent=_isStudentTarget(atype);
+  const pts=isStudent?Number($('st2-pts').value)||10:0;
+  const priority=isStudent?$('st2-priority').value:$('st2-priority-np').value;
   let assignTo=null,requestedBy=null;
-  const isStuAssign2=(atype==='student'||atype==='group_all_students');
-  const st2Pts=isStuAssign2?Number($('st2-pts').value)||10:0;
-  if(atype==='student'||atype==='peer'){
-    assignTo=$('st2-assign-user').value||null;
-    if(!assignTo)return alert('Please select a person.');
-  } else if(atype==='request'){
-    assignTo=$('st2-assign-user').value||null;
-    if(!assignTo)return alert('Please select a person.');
-    requestedBy=currentUser.id;
-  }
+  if(atype==='student'||atype==='peer'){assignTo=$('st2-assign-user').value||null;if(!assignTo)return alert('Please select a person.');}
+  else if(atype==='request'){assignTo=$('st2-assign-user').value||null;if(!assignTo)return alert('Please select a person.');requestedBy=currentUser.id;}
   if(!assignTo)return alert('Please select who to assign this task to.');
   const rec=$('st2-recurrence').value;
   const recDay=rec==='weekly'?Number($('st2-rec-weekday').value):rec==='monthly'?Number($('st2-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('st2-rec-interval-val').value):null;
+  const slotConfig=st2TaskSlots.length?JSON.stringify(st2TaskSlots):null;
+  const onePer=$('st2-one-per-worker').checked?1:0;
   setSyncing(true);
   try{
-    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uuid(),title,($('st2-desc').value||'').trim()||null,st2Pts,null,$('st2-priority').value,'specific',assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay]);
+    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),title,($('st2-desc').value||'').trim()||null,pts,$('st2-deadline').value||null,priority,'specific',assignTo,activeCampus,2,currentUser.id,'staff',requestedBy,rec,recInt,recDay,slotConfig,onePer]);
     await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
-    $('st2-title').value='';$('st2-desc').value='';$('st2-pts').value='10';$('st2-priority').value='medium';$('st2-recurrence').value='none';$('st2-assign-type').value='peer';
-    onStaff2RecurrenceChange();onStaff2AssignTypeChange();await loadData();
+    $('st2-title').value='';$('st2-desc').value='';$('st2-pts').value='10';$('st2-deadline').value='';$('st2-priority').value='medium';$('st2-priority-np').value='medium';$('st2-recurrence').value='none';$('st2-assign-type').value='group_all_staff';$('st2-one-per-worker').checked=false;
+    onStaff2RecurrenceChange();onStaff2AssignTypeChange();st2TaskSlots=[];renderSlotList('st2-slot-list',st2TaskSlots,'st2');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
+
  
 async function deleteTask(id){if(!confirm('Delete this task?'))return;setSyncing(true);try{await tursoFetch('DELETE FROM tasks WHERE id=?',[id]);await loadData();}catch(e){alert('Error: '+e.message);}setSyncing(false);}
  

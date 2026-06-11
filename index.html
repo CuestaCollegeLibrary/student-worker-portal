@@ -671,44 +671,12 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
           </div>
           <div class="sticky-panel">
             <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
-              <h3>New Task</h3>
+              <h3>New Task for Me</h3>
+              <p style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem">Creates a task assigned only to you. No points — use Team Tasks to assign to others.</p>
               <div class="form-grid">
                 <div class="field"><label>Title *</label><input class="input" id="st-title" placeholder="Task title"/></div>
                 <div class="field"><label>Description</label><textarea class="input" id="st-desc" placeholder="Optional details…"></textarea></div>
-                <div class="field">
-                  <label>Assign to</label>
-                  <select class="input" id="st-assign-type" onchange="onStaffAssignTypeChange()">
-                    <option value="self">🙋 Myself</option>
-                    <option value="specific_student">🎓 Specific Student Worker</option>
-                    <option value="collab_students">🤝 Collaborative — all students</option>
-                    <option value="collab_specific_students">🤝 Collaborative — specific students</option>
-                    <option value="request">📨 Request from Staff / Admin</option>
-                  </select>
-                </div>
-                <div class="field hidden" id="st-specific-user-field">
-                  <label id="st-specific-user-label">Select Student Worker</label>
-                  <select class="input" id="st-assign-user"><option value="">— Select —</option></select>
-                </div>
-                <div class="field hidden" id="st-request-user-field">
-                  <label>Request from</label>
-                  <select class="input" id="st-request-user"><option value="">— Select Staff / Admin —</option></select>
-                </div>
-                <div class="field hidden" id="st-collab-specific-field">
-                  <label>Select students (hold Ctrl/Cmd for multiple)</label>
-                  <select class="input" id="st-collab-users" multiple style="min-height:100px"></select>
-                </div>
-                <div class="field hidden" id="st-collab-limit-field">
-                  <label>Max completions per day</label>
-                  <input class="input" id="st-collab-required" type="number" min="2" max="20" value="2"/>
-                </div>
-                <div class="form-row col2 hidden" id="st-pts-row">
-                  <div class="field"><label>Points</label><input class="input" id="st-pts" type="number" min="1" max="500" value="10"/></div>
-                  <div class="field"><label>Priority</label><select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
-                </div>
-                <div class="form-row col2" id="st-no-pts-row">
-                  <div class="field"><label style="color:var(--faint)">Points</label><input class="input" value="N/A — staff task" disabled style="color:var(--faint);background:var(--surface2)"/></div>
-                  <div class="field"><label>Priority</label><select class="input" id="st-priority-np"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
-                </div>
+                <div class="field"><label>Priority</label><select class="input" id="st-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
                 <div class="field"><label>Deadline (optional)</label><input class="input" id="st-deadline" type="date"/></div>
                 <div class="field"><label>Recurrence</label>
                   <select class="input" id="st-recurrence" onchange="onStaffRecurrenceChange()">
@@ -720,7 +688,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="rec-options hidden" id="st-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
                 <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addStSlot()">+ Add Slot</button></label><div id="st-slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
                 <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="st-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
-                <button class="btn btn-primary" onclick="staffAddTask()">Create Task</button>
+                <button class="btn btn-primary" onclick="staffAddMyTask()">Create Task</button>
               </div>
             </div>
           </div>
@@ -1821,7 +1789,7 @@ function renderStaffMyTasks(){
   const campusT=tasks.filter(t=>t.campus===activeCampus);
   const mine=campusT.filter(t=>t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id));
   $('no-staff-tasks').classList.toggle('hidden',mine.length>0);
-  mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
+  mine.forEach(t=>buildTaskRows(t,true).forEach(r=>list.appendChild(r)));
 }
 
 function renderStaffTeamTasks(){
@@ -2278,47 +2246,22 @@ function removeStSlot(idx){stTaskSlots.splice(idx,1);renderSlotList('st-slot-lis
 function addSt2Slot(){st2TaskSlots.push({start:'',end:'',task_type:'everyone',assign_to:null,label:st2TaskSlots.length===0?'Morning':'Evening'});renderSlotList('st2-slot-list',st2TaskSlots,'st2');}
 function removeSt2Slot(idx){st2TaskSlots.splice(idx,1);renderSlotList('st2-slot-list',st2TaskSlots,'st2');}
 
-async function staffAddTask(){
-  const atype=$('st-assign-type').value;
+async function staffAddMyTask(){
   const title=($('st-title').value||'').trim();if(!title)return alert('Please enter a task title.');
-  const isStudent=_isStudentAssignType(atype)||atype==='self';
-  const pts=isStudent?Number($('st-pts').value)||10:0;
-  const priority=isStudent?$('st-priority').value:$('st-priority-np').value;
   const rec=$('st-recurrence').value;
   const recDay=rec==='weekly'?Number($('st-rec-weekday').value):rec==='monthly'?Number($('st-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('st-rec-interval-val').value):null;
   const slotConfig=stTaskSlots.length?JSON.stringify(stTaskSlots):null;
   const onePer=$('st-one-per-worker').checked?1:0;
-  const collabLimit=Number($('st-collab-required').value)||2;
   setSyncing(true);
   try{
-    if(atype==='self'){
-      await _insertTask({title,desc:($('st-desc').value||'').trim(),pts,priority,taskType:'specific',assignTo:currentUser.id,rec,recDay,recInt,slotConfig,onePer});
-    } else if(atype==='specific_student'){
-      const assignTo=$('st-assign-user').value;if(!assignTo)return alert('Please select a student.');
-      await _insertTask({title,desc:($('st-desc').value||'').trim(),pts,priority,taskType:'specific',assignTo,rec,recDay,recInt,slotConfig,onePer});
-      await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
-    } else if(atype==='collab_students'){
-      await _insertTask({title,desc:($('st-desc').value||'').trim(),pts,priority,taskType:'collaborative',rec,recDay,recInt,slotConfig,onePer,collabRequired:collabLimit});
-    } else if(atype==='collab_specific_students'){
-      const sel=$('st-collab-users');
-      const chosen=[...sel.selectedOptions].map(o=>o.value);
-      if(!chosen.length)return alert('Please select at least one student.');
-      for(const uid of chosen){
-        await _insertTask({title,desc:($('st-desc').value||'').trim(),pts,priority,taskType:'specific',assignTo:uid,rec,recDay,recInt,slotConfig,onePer});
-        await sendNotification({to_user:uid,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});
-      }
-    } else if(atype==='request'){
-      const requestTo=$('st-request-user').value;if(!requestTo)return alert('Please select who to request from.');
-      await _insertTask({title,desc:($('st-desc').value||'').trim(),pts:0,priority,taskType:'specific',assignTo:requestTo,requestedBy:currentUser.id,rec,recDay,recInt,slotConfig,onePer});
-      await sendNotification({to_user:requestTo,type:'message',title:'Task Request',body:`${currentUser.name} is requesting you complete: "${title}"`,icon:'📨',campus:activeCampus});
-    }
-    $('st-title').value='';$('st-desc').value='';$('st-pts').value='10';$('st-deadline').value='';$('st-priority').value='medium';$('st-priority-np').value='medium';$('st-recurrence').value='none';$('st-assign-type').value='self';$('st-one-per-worker').checked=false;
-    onStaffRecurrenceChange();onStaffAssignTypeChange();stTaskSlots=[];renderSlotList('st-slot-list',stTaskSlots,'st');await loadData();
+    await _insertTask({title,desc:($('st-desc').value||'').trim(),pts:0,priority:$('st-priority').value,taskType:'specific',assignTo:currentUser.id,rec,recDay,recInt,slotConfig,onePer});
+    $('st-title').value='';$('st-desc').value='';$('st-priority').value='medium';$('st-deadline').value='';$('st-recurrence').value='none';$('st-one-per-worker').checked=false;
+    onStaffRecurrenceChange();stTaskSlots=[];renderSlotList('st-slot-list',stTaskSlots,'st');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
 
-async function staffAddTask2(){
+async function staffAddTask(){
   const atype=$('st2-assign-type').value;
   const title=($('st2-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   const isStudent=_isStudentAssignType(atype);

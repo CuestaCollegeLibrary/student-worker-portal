@@ -846,13 +846,15 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div class="page">
       <div id="student-hero" class="user-hero"></div>
       <div class="tabs" id="student-tabs">
-        <button class="tab active" onclick="studentTab('tasks')">📋 My Tasks</button>
+        <button class="tab active" onclick="studentTab('mytasks')">📋 My Tasks</button>
+        <button class="tab" onclick="studentTab('teamtasks')">📢 Team Tasks</button>
         <button class="tab" onclick="studentTab('history')">✅ History</button>
         <button class="tab" onclick="studentTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="studentTab('pitch')">⭐ Pitch for Points</button>
         <button class="tab" id="student-notif-tab" onclick="studentTab('notifications')">🔔 Notifications</button>
       </div>
-      <div id="s-tasks"><div class="task-list" id="student-task-list"></div></div>
+      <div id="s-mytasks"><div class="task-list" id="student-my-task-list"></div><p class="muted hidden" id="no-student-mytasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned specifically to you.</p></div>
+      <div id="s-teamtasks" class="hidden"><div class="task-list" id="student-team-task-list"></div><p class="muted hidden" id="no-student-teamtasks" style="font-size:.88rem;margin-top:.5rem">No team tasks right now.</p></div>
       <div id="s-history" class="hidden">
         <h2 class="section-title">My History</h2>
         <div id="student-history-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
@@ -1299,7 +1301,7 @@ function staffTab(name){
   if(name==='notifications') renderStaffNotifications();
 }
 function studentTab(name){
-  const tabs=['tasks','history','leaderboard','pitch','notifications'];
+  const tabs=['mytasks','teamtasks','history','leaderboard','pitch','notifications'];
   tabs.forEach((t,i)=>$(`s-${t}`).classList.toggle('hidden',t!==name));
   $('student-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='notifications') renderStudentNotifications();
@@ -1360,7 +1362,7 @@ async function loadData() {
       tursoFetch('SELECT * FROM daily_messages ORDER BY show_date DESC'),
     ]);
     users=u.map(r=>({...r,points:Number(r.points)||0,completion_count:Number(r.completion_count)||0,weekly_hours:Number(r.weekly_hours)||0,must_reset_pw:r.must_reset_pw==='1'||r.must_reset_pw===1}));
-    tasks=t.map(r=>({...r,points_value:Number(r.points_value)||10,collab_required:Number(r.collab_required)||2,recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,one_per_worker_day:r.one_per_worker_day==='1'||r.one_per_worker_day===1}));
+    tasks=t.map(r=>({...r,points_value:r.points_value!=null?Number(r.points_value):10,collab_required:Number(r.collab_required)||2,recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,one_per_worker_day:r.one_per_worker_day==='1'||r.one_per_worker_day===1}));
     completions=c.map(r=>({...r,solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1,points_voided:r.points_voided==='1'||r.points_voided===1,slot_index:Number(r.slot_index)||0,pts_earned:Number(r.pts_earned)||0}));
     notifications=n; notifReads=nr;
     pointAdjs=pa.map(r=>({...r,points:Number(r.points)||0}));
@@ -1851,32 +1853,52 @@ function renderStudentHero(){
   hero.appendChild(pbox);
   const vis=myVisibleTasks();
   const pend=vis.filter(({task,slotIdx,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey));
-  const tab=$('student-tabs')?.querySelectorAll('.tab')?.[0];if(tab)tab.textContent=`📋 My Tasks (${pend.length})`;
+  const tab=$('student-tabs')?.querySelectorAll('.tab')?.[0];if(tab)tab.textContent=`📋 My Tasks (${myPersonalTasks().filter(({task,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey)).length})`;
 }
  
-function myVisibleTasks(){
+function myPersonalTasks(){
+  // Tasks assigned specifically to this worker (specific type with their ID)
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus&&t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id)).forEach(t=>{
     const slots=parsedSlots(t);
-    if(!slots.length){
-      const canSee=t.task_type==='everyone'||t.task_type==='collaborative'||(t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id));
-      if(canSee){result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});}
-    } else {
-      slots.forEach((slot,i)=>{
-        const st=slot.task_type||'everyone';
-        const canSee=st==='everyone'||(st==='specific'&&String(slot.assign_to)===String(currentUser?.id));
-        if(canSee)result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});
-      });
-    }
+    if(!slots.length){result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});}
+    else{slots.forEach((slot,i)=>{const st=slot.task_type||'everyone';if(st==='everyone'||(st==='specific'&&String(slot.assign_to)===String(currentUser?.id)))result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});});}
   });
   return result;
 }
+
+function myTeamTasks(){
+  // Tasks open to everyone or collaborative
+  const result=[];
+  tasks.filter(t=>t.campus===activeCampus&&(t.task_type==='everyone'||t.task_type==='collaborative')).forEach(t=>{
+    const slots=parsedSlots(t);
+    if(!slots.length){result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});}
+    else{slots.forEach((slot,i)=>{const st=slot.task_type||'everyone';if(st==='everyone')result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});});}
+  });
+  return result;
+}
+
+function myVisibleTasks(){
+  return [...myPersonalTasks(),...myTeamTasks()];
+}
  
 function renderStudentTasks(){
-  const list=$('student-task-list');if(!list)return;list.innerHTML='';
-  const vis=myVisibleTasks();
-  if(!vis.length){list.innerHTML='<div class="empty"><div class="icon">🎉</div><p>All caught up!</p></div>';return;}
-  vis.forEach(({task,slotIdx,slot})=>list.appendChild(buildTaskRow(task,false,slotIdx,slot)));
+  // My Tasks — specifically assigned
+  const myList=$('student-my-task-list');
+  if(myList){
+    myList.innerHTML='';
+    const personal=myPersonalTasks();
+    $('no-student-mytasks')?.classList.toggle('hidden',personal.length>0);
+    personal.forEach(({task,slotIdx,slot})=>myList.appendChild(buildTaskRow(task,false,slotIdx,slot)));
+  }
+  // Team Tasks — everyone/collaborative
+  const teamList=$('student-team-task-list');
+  if(teamList){
+    teamList.innerHTML='';
+    const team=myTeamTasks();
+    $('no-student-teamtasks')?.classList.toggle('hidden',team.length>0);
+    team.forEach(({task,slotIdx,slot})=>teamList.appendChild(buildTaskRow(task,false,slotIdx,slot)));
+  }
 }
  
 function renderStudentHistory(){

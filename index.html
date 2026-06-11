@@ -1177,7 +1177,10 @@ function rowsFromResult(result) {
   const cols=result.cols.map(c=>c.name);
   return result.rows.map(row=>{
     const obj={};
-    cols.forEach((col,i)=>{const cell=row[i];obj[col]=(!cell||cell.type==='null')?null:(cell.value??null);});
+    cols.forEach((col,i)=>{
+      const cell=row[i];
+      obj[col]=(cell==null||cell.type==='null')?null:(cell.value??null);
+    });
     return obj;
   });
 }
@@ -1431,7 +1434,7 @@ function renderAll(){
     renderAdminLb();renderAdminMessages();
     renderPitchBanner('admin');renderHelpBanner('admin');renderAllPitches();populateAssignSelects();
   } else if(currentUser.role==='staff'){
-    renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();renderStaffTasks();
+    renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();
     renderStaffLb();renderStaffMessages();renderPitchBanner('staff');renderHelpBanner('staff');populateAssignSelects();
   } else {
     renderStudentHero();renderStudentTasks();renderStudentHistory();renderStudentLb();renderStudentPitches();
@@ -1515,14 +1518,12 @@ function populateAssignSelects(){
   const students=campusUsers('student');
   const staffAdmins=[...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser?.id);
   const all=[...campusUsers('admin'),...campusUsers('staff'),...students];
-  // Trigger change handlers so the visible fields populate correctly
-  onAssignTypeChange();onStaffAssignTypeChange();onStaff2AssignTypeChange();
-  // Always pre-fill collab multi-selects with students
+  // Admin form
+  onAssignTypeChange();
   const tCollab=$('t-collab-users');if(tCollab)_fillMulti(tCollab,students);
-  const stCollab=$('st-collab-users');if(stCollab)_fillMulti(stCollab,students);
+  // Staff Team Tasks form (st2-)
+  onStaff2AssignTypeChange();
   const st2Collab=$('st2-collab-users');if(st2Collab)_fillMulti(st2Collab,students);
-  // Pre-fill request selects
-  const stReq=$('st-request-user');if(stReq)_fillSelect(stReq,staffAdmins);
   const st2Req=$('st2-request-user');if(st2Req)_fillSelect(st2Req,staffAdmins);
   // DM selects
   [['dm-user',all],['sdm-user',all]].forEach(([id,pool])=>{
@@ -2066,14 +2067,15 @@ function onAssignTypeChange(){
   const isStudentTask=(v==='student'||v==='collaborative');
   $('t-pts-row').style.display=isStudentTask?'':'none';
   $('t-no-pts-row').style.display=isStudentTask?'none':'';
-  $('t-assign-user-field').classList.toggle('hidden', v==='collaborative');
-  $('t-collab-field').classList.toggle('hidden', v!=='collaborative');
-  if(v==='staff'){
-    $('t-assign-user-label').textContent='Select Staff / Admin';
+  $('t-specific-user-field').classList.toggle('hidden',!['specific_staff','specific_student'].includes(v));
+  $('t-collab-specific-field').classList.toggle('hidden',v!=='collab_specific');
+  $('t-collab-limit-field').classList.toggle('hidden',!v.startsWith('collab'));
+  if(v==='specific_staff'){
+    $('t-specific-user-label').textContent='Select Staff / Admin';
     const sel=$('t-assign-user');sel.innerHTML='<option value="">— Select —</option>';
     [...campusUsers('admin'),...campusUsers('staff')].forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
   } else if(v==='student'){
-    $('t-assign-user-label').textContent='Select Student Worker';
+    $('t-specific-user-label').textContent='Select Student Worker';
     const sel=$('t-assign-user');sel.innerHTML='<option value="">— Select —</option>';
     campusUsers('student').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});
   }
@@ -2107,19 +2109,8 @@ function onAssignTypeChange(){
 }
 
 function onStaffAssignTypeChange(){
-  const v=$('st-assign-type').value;
-  const isStudent=_isStudentAssignType(v)||v==='self';
-  const isCollab=v.startsWith('collab');
-  const isCollabSpecific=v==='collab_specific_students';
-  $('st-specific-user-field').classList.toggle('hidden',v!=='specific_student');
-  $('st-request-user-field').classList.toggle('hidden',v!=='request');
-  $('st-collab-specific-field').classList.toggle('hidden',!isCollabSpecific);
-  $('st-collab-limit-field').classList.toggle('hidden',!isCollab);
-  $('st-pts-row').classList.toggle('hidden',!isStudent);
-  $('st-no-pts-row').classList.toggle('hidden',isStudent);
-  if(v==='specific_student') _fillSelect($('st-assign-user'),campusUsers('student'));
-  if(v==='request') _fillSelect($('st-request-user'),[...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser.id));
-  if(isCollabSpecific) _fillMulti($('st-collab-users'),campusUsers('student'));
+  // My Tasks form no longer has an assign dropdown — this is a no-op
+  // All assign logic is handled by onStaff2AssignTypeChange for Team Tasks
 }
 
 function onStaff2AssignTypeChange(){
@@ -2261,7 +2252,7 @@ async function staffAddMyTask(){
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
 
-async function staffAddTask(){
+async function staffAddTask2(){
   const atype=$('st2-assign-type').value;
   const title=($('st2-title').value||'').trim();if(!title)return alert('Please enter a task title.');
   const isStudent=_isStudentAssignType(atype);
@@ -2300,7 +2291,19 @@ async function staffAddTask(){
 }
 
  
-async function deleteTask(id){if(!confirm('Delete this task?'))return;setSyncing(true);try{await tursoFetch('DELETE FROM tasks WHERE id=?',[id]);await loadData();}catch(e){alert('Error: '+e.message);}setSyncing(false);}
+async function deleteTask(id){
+  if(!confirm('Delete this task?'))return;
+  setSyncing(true);
+  try{
+    await tursoFetch('DELETE FROM tasks WHERE id=?',[id]);
+    await loadData();
+  }catch(e){
+    // If the task was deleted successfully but render threw, just reload
+    if(e.message?.includes('null')&&!tasks.find(t=>t.id===id)){await loadData();}
+    else alert('Error: '+e.message);
+  }
+  setSyncing(false);
+}
  
 // ══════════════════════════════════════════════════════════════
 // EDIT MODAL

@@ -1772,8 +1772,10 @@ function renderAdminHero(){
 function renderAdminMyTasks(){
   const list=$('admin-my-tasks');if(!list)return;list.innerHTML='';
   const mine=tasks.filter(t=>t.campus===activeCampus&&String(t.assign_to)===String(currentUser.id));
-  $('no-admin-mytasks').classList.toggle('hidden',mine.length>0);
-  mine.forEach(t=>buildTaskRows(t,false).forEach(r=>list.appendChild(r)));
+  const items=mine.map(t=>({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null}));
+  const visible=sortTasksForStaff(items.filter(({task,slotIdx,oKey})=>!isTaskHidden(task,slotIdx,oKey,currentUser.id)));
+  $('no-admin-mytasks').classList.toggle('hidden',visible.length>0);
+  visible.forEach(({task})=>buildTaskRows(task,true).forEach(r=>list.appendChild(r)));
 }
 
 function renderAdminTeamTasks(){
@@ -1940,10 +1942,25 @@ function renderStaffHero(){
 function renderStaffMyTasks(){
   const list=$('staff-my-tasks');
   if(!list)return;list.innerHTML='';
-  const campusT=tasks.filter(t=>t.campus===activeCampus);
-  const mine=campusT.filter(t=>t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id));
-  $('no-staff-tasks').classList.toggle('hidden',mine.length>0);
-  mine.forEach(t=>buildTaskRows(t,true).forEach(r=>list.appendChild(r)));
+  const mine=tasks.filter(t=>t.campus===activeCampus&&t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id));
+  // Build items with oKey, filter hidden, sort
+  const items=mine.map(t=>({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null}));
+  const visible=sortTasksForStaff(items.filter(({task,slotIdx,oKey})=>!isTaskHidden(task,slotIdx,oKey,currentUser.id)));
+  $('no-staff-tasks').classList.toggle('hidden',visible.length>0);
+  visible.forEach(({task})=>buildTaskRows(task,true).forEach(r=>list.appendChild(r)));
+}
+
+// Sort for staff: same rules as students — incomplete first, open window first, then pts ascending
+function sortTasksForStaff(items){
+  return [...items].sort((a,b)=>{
+    const aDone=completions.some(c=>c.task_id===a.task.id&&c.user_id===currentUser?.id&&(c.occurrence_key===a.oKey||c.occurrence_key==='once')&&!c.points_voided);
+    const bDone=completions.some(c=>c.task_id===b.task.id&&c.user_id===currentUser?.id&&(c.occurrence_key===b.oKey||c.occurrence_key==='once')&&!c.points_voided);
+    if(aDone!==bDone) return aDone?1:-1;
+    const aInWin=a.slot?isInWindow(a.slot.start,a.slot.end):true;
+    const bInWin=b.slot?isInWindow(b.slot.start,b.slot.end):true;
+    if(aInWin!==bInWin) return aInWin?-1:1;
+    return (a.task.points_value||0)-(b.task.points_value||0);
+  });
 }
 
 function renderStaffTeamTasks(){

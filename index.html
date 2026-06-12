@@ -958,6 +958,29 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div class="form-grid">
       <div class="field"><label>Title</label><input class="input" id="edit-title"/></div>
       <div class="field"><label>Description</label><textarea class="input" id="edit-desc"></textarea></div>
+      <!-- Assignment type -->
+      <div class="field">
+        <label>Assignment</label>
+        <select class="input" id="edit-assign-type" onchange="onEditAssignTypeChange()">
+          <option value="everyone">📢 Everyone</option>
+          <option value="specific">👤 Specific Person</option>
+          <option value="collaborative">🤝 Collaborative — open to everyone</option>
+          <option value="collab_specific">🤝 Collaborative — specific people</option>
+        </select>
+      </div>
+      <div class="field hidden" id="edit-specific-user-field">
+        <label>Assign to</label>
+        <select class="input" id="edit-assign-user"><option value="">— Select —</option></select>
+      </div>
+      <div class="field hidden" id="edit-collab-specific-field">
+        <label>Select people (hold Ctrl/Cmd for multiple)</label>
+        <select class="input" id="edit-collab-users" multiple style="min-height:90px"></select>
+      </div>
+      <div class="field hidden" id="edit-collab-limit-field">
+        <label>Max completions per day</label>
+        <input class="input" id="edit-collab-required" type="number" min="2" max="20" value="2"/>
+      </div>
+      <!-- Points / Priority -->
       <div class="form-row col2" id="edit-pts-row">
         <div class="field"><label>Points</label><input class="input" id="edit-pts" type="number" min="0" max="500"/></div>
         <div class="field"><label>Priority</label><select class="input" id="edit-priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
@@ -967,13 +990,6 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <div class="field"><label>Priority</label><select class="input" id="edit-priority-np"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
       </div>
       <div class="field"><label>Deadline</label><input class="input" id="edit-deadline" type="date"/></div>
-      <div class="field" id="edit-collab-wrap" style="display:none"><label>Required completions</label><input class="input" id="edit-collab-required" type="number" min="2" max="20"/></div>
-      <div class="field">
-        <label>Reassign to</label>
-        <select class="input" id="edit-assign-user">
-          <option value="">— Keep current assignment —</option>
-        </select>
-      </div>
       <div class="field"><label>Recurrence</label>
         <select class="input" id="edit-recurrence" onchange="onEditRecurrenceChange()">
           <option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every X Days</option>
@@ -1567,6 +1583,16 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   const pri=document.createElement('span');pri.className=`badge badge-${task.priority||'medium'}`;pri.textContent={low:'Low',medium:'Medium',high:'High'}[task.priority]||'Medium';titleRow.appendChild(pri);
   if(task.task_type==='collaborative'){const b=document.createElement('span');b.className='badge badge-collab';b.textContent='🤝 Collab';titleRow.appendChild(b);}
   else if(effectiveType==='everyone'){const b=document.createElement('span');b.className='badge badge-everyone';b.textContent='📢 Everyone';titleRow.appendChild(b);}
+  // Collab-specific badge: same title + same creator + same campus, multiple specific tasks
+  else if(task.task_type==='specific'&&task.collab_required>1){
+    const siblings=tasks.filter(t=>t.id!==task.id&&t.title===task.title&&t.created_by===task.created_by&&t.campus===task.campus&&t.task_type==='specific');
+    if(siblings.length>0){
+      const b=document.createElement('span');b.className='badge badge-collab';
+      const names=siblings.map(t=>{const u=users.find(x=>x.id===t.assign_to);return u?u.name.split(' ')[0]:'?';});
+      b.textContent=`🤝 With: ${names.join(', ')}`;b.title='Collaborative task — working with teammates';
+      titleRow.appendChild(b);
+    }
+  }
   if(slot){const b=document.createElement('span');b.className='badge badge-slot';b.textContent=slot.label||(slotIdx===0?'🌅 Slot 1':'🌙 Slot 2');titleRow.appendChild(b);}
   const rl=recLabel(task);if(rl){const b=document.createElement('span');b.className='badge badge-rec';b.textContent=rl;titleRow.appendChild(b);}
   if(effectiveStart&&effectiveEnd){
@@ -2356,8 +2382,37 @@ async function deleteTask(id){
 // ══════════════════════════════════════════════════════════════
 // EDIT MODAL
 // ══════════════════════════════════════════════════════════════
+function onEditAssignTypeChange(){
+  const v=$('edit-assign-type').value;
+  const isStudent=v==='specific'||v==='collaborative'||v==='collab_specific'||v==='everyone';
+  const isCollab=v==='collaborative'||v==='collab_specific';
+  $('edit-specific-user-field').classList.toggle('hidden',v!=='specific');
+  $('edit-collab-specific-field').classList.toggle('hidden',v!=='collab_specific');
+  $('edit-collab-limit-field').classList.toggle('hidden',!isCollab);
+}
+
 function openEditModal(task){
-  editingTaskId=task.id;$('edit-title').value=task.title||'';$('edit-desc').value=task.description||'';
+  editingTaskId=task.id;
+  $('edit-title').value=task.title||'';
+  $('edit-desc').value=task.description||'';
+  // Set assignment type dropdown
+  const atype=$('edit-assign-type');
+  if(task.task_type==='everyone') atype.value='everyone';
+  else if(task.task_type==='collaborative') atype.value='collaborative';
+  else atype.value='specific';
+  onEditAssignTypeChange();
+  // Populate specific user dropdown
+  const allU=[...campusUsers('admin'),...campusUsers('staff'),...campusUsers('student')];
+  const uSel=$('edit-assign-user');
+  uSel.innerHTML='<option value="">— Select —</option>';
+  allU.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===task.assign_to)o.selected=true;uSel.appendChild(o);});
+  // Populate collab multi-select
+  const cSel=$('edit-collab-users');
+  cSel.innerHTML='';
+  campusUsers('student').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;cSel.appendChild(o);});
+  // Collab limit
+  $('edit-collab-required').value=task.collab_required||2;
+  // Points / priority
   const hasPoints=task.points_value>0;
   $('edit-pts-row').classList.toggle('hidden',!hasPoints);
   $('edit-no-pts-row').classList.toggle('hidden',hasPoints);
@@ -2365,18 +2420,14 @@ function openEditModal(task){
   $('edit-priority').value=task.priority||'medium';
   $('edit-priority-np').value=task.priority||'medium';
   $('edit-deadline').value=task.deadline||'';
-  $('edit-recurrence').value=task.recurrence||'none';$('edit-rec-weekday').value=task.recurrence_day??1;
-  $('edit-rec-monthday').value=task.recurrence_day??1;$('edit-rec-interval-val').value=task.recurrence_interval??7;
-  $('edit-collab-wrap').style.display=task.task_type==='collaborative'?'':'none';$('edit-collab-required').value=task.collab_required||2;
-  // Populate reassign dropdown
-  const eaSel=$('edit-assign-user');
-  if(eaSel){
-    eaSel.innerHTML='<option value="">— Keep current assignment —</option>';
-    const allU=[...campusUsers('admin'),...campusUsers('staff'),...campusUsers('student')];
-    allU.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;if(u.id===task.assign_to)o.selected=true;eaSel.appendChild(o);});
-  }
-  $('edit-one-per-worker').checked=!!task.one_per_worker_day;onEditRecurrenceChange();
-  editTaskSlots=parsedSlots(task);renderSlotList('edit-slot-list',editTaskSlots,'edit');
+  $('edit-recurrence').value=task.recurrence||'none';
+  $('edit-rec-weekday').value=task.recurrence_day??1;
+  $('edit-rec-monthday').value=task.recurrence_day??1;
+  $('edit-rec-interval-val').value=task.recurrence_interval??7;
+  $('edit-one-per-worker').checked=!!task.one_per_worker_day;
+  onEditRecurrenceChange();
+  editTaskSlots=parsedSlots(task);
+  renderSlotList('edit-slot-list',editTaskSlots,'edit');
   $('edit-modal').classList.add('show');
 }
 function closeEditModal(){$('edit-modal').classList.remove('show');editingTaskId=null;}
@@ -2384,6 +2435,7 @@ function closeEditModal(){$('edit-modal').classList.remove('show');editingTaskId
 async function saveEdit(){
   if(!editingTaskId)return;
   const oldTask=tasks.find(t=>t.id===editingTaskId);
+  const atype=$('edit-assign-type').value;
   const hasPoints=oldTask?.points_value>0;
   const newPts=hasPoints?Number($('edit-pts').value)||0:0;
   const priority=hasPoints?$('edit-priority').value:$('edit-priority-np').value;
@@ -2391,16 +2443,32 @@ async function saveEdit(){
   const recDay=rec==='weekly'?Number($('edit-rec-weekday').value):rec==='monthly'?Number($('edit-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('edit-rec-interval-val').value):null;
   const slotConfig=editTaskSlots.length?JSON.stringify(editTaskSlots):null;
+  const onePer=$('edit-one-per-worker').checked?1:0;
+  const collabLimit=Number($('edit-collab-required').value)||2;
+  const title=($('edit-title').value||'').trim();
+  const desc=($('edit-desc').value||'').trim()||null;
+  const deadline=$('edit-deadline').value||null;
   setSyncing(true);
   try{
-    const newAssignTo=$('edit-assign-user')?.value||null;
-    await tursoFetch('UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=?,slot_config=?,one_per_worker_day=?,assign_to=COALESCE(NULLIF(?,\'\'),assign_to) WHERE id=?',
-      [($('edit-title').value||'').trim(),($('edit-desc').value||'').trim()||null,newPts,$('edit-deadline').value||null,priority,Number($('edit-collab-required').value)||2,rec,recInt,recDay,slotConfig,$('edit-one-per-worker').checked?1:0,newAssignTo||'',editingTaskId]);
-    const oldPts=oldTask?.points_value??0,diff=newPts-oldPts;
-    if(diff!==0){
-      const adj={};completions.filter(c=>c.task_id===editingTaskId&&!c.points_voided).forEach(c=>{adj[c.user_id]=(adj[c.user_id]||0)+diff;});
-      const b=Object.entries(adj).map(([uid,d])=>({sql:'UPDATE users SET points=MAX(0,points+?) WHERE id=?',args:[d,uid]}));
-      if(b.length)await tursoBatch(b);
+    if(atype==='collab_specific'){
+      const chosen=[...$('edit-collab-users').selectedOptions].map(o=>o.value);
+      if(!chosen.length){alert('Please select at least one person.');setSyncing(false);return;}
+      await tursoFetch('DELETE FROM tasks WHERE id=?',[editingTaskId]);
+      for(const uid of chosen){
+        await _insertTask({title,desc,pts:newPts,deadline,priority,taskType:'specific',assignTo:uid,rec,recDay,recInt,slotConfig,onePer,collabRequired:collabLimit,createdByRole:oldTask.created_by_role||currentUser.role});
+        await sendNotification({to_user:uid,type:'message',title:'Task Updated',body:`"${title}" has been assigned to you.`,icon:'📋',campus:activeCampus});
+      }
+    } else {
+      const newTaskType=atype==='everyone'?'everyone':atype==='collaborative'?'collaborative':'specific';
+      const newAssignTo=atype==='specific'?($('edit-assign-user').value||oldTask.assign_to||null):null;
+      await tursoFetch('UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,task_type=?,assign_to=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=?,slot_config=?,one_per_worker_day=? WHERE id=?',
+        [title,desc,newPts,deadline,priority,newTaskType,newAssignTo,collabLimit,rec,recInt,recDay,slotConfig,onePer,editingTaskId]);
+      const oldPts=oldTask?.points_value??0,diff=newPts-oldPts;
+      if(diff!==0){
+        const adj={};completions.filter(c=>c.task_id===editingTaskId&&!c.points_voided).forEach(c=>{adj[c.user_id]=(adj[c.user_id]||0)+diff;});
+        const b=Object.entries(adj).map(([uid,d])=>({sql:'UPDATE users SET points=MAX(0,points+?) WHERE id=?',args:[d,uid]}));
+        if(b.length)await tursoBatch(b);
+      }
     }
     closeEditModal();await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);

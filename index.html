@@ -143,6 +143,12 @@ textarea.input{resize:vertical;min-height:68px;}
 .task-desc{color:var(--muted);font-size:.78rem;margin-top:.2rem;}
 .task-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;}
 .task-assign{color:var(--muted);font-size:.76rem;}
+.grouped-card{flex-direction:column;align-items:stretch;gap:0;}
+.slot-sub-list{display:flex;flex-direction:column;gap:0;margin-top:.6rem;border-top:1px solid var(--border);}
+.slot-sub-row{display:flex;align-items:center;gap:.75rem;padding:.55rem .25rem;border-bottom:1px solid var(--border);font-size:.84rem;}
+.slot-sub-row:last-child{border-bottom:none;}
+.slot-sub-row.done{opacity:.55;}
+.slot-sub-row.locked{opacity:.45;}
 .task-pts{color:#7A5500;font-weight:700;font-size:.82rem;background:#FFF8E0;border-radius:6px;padding:.15rem .5rem;border:1px solid #FFEAA0;}
 .task-deadline{font-size:.76rem;}
 .task-deadline.overdue{color:#C0294A;font-weight:600;}.task-deadline.ok{color:var(--muted);}
@@ -1651,7 +1657,104 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
 function buildTaskRows(task,isAdmin){
   const slots=parsedSlots(task);
   if(!slots.length) return [buildTaskRow(task,isAdmin,0,null)];
-  return slots.map((slot,i)=>buildTaskRow(task,isAdmin,i,slot));
+  // Slotted task — one grouped card
+  return [buildSlottedCard(task,isAdmin)];
+}
+
+// Single card for a task with multiple time slots
+function buildSlottedCard(task,isAdmin){
+  const userMap=Object.fromEntries(users.map(u=>[u.id,u]));
+  const card=document.createElement('div');card.className='task-row grouped-card';
+  // Header
+  const header=document.createElement('div');header.className='task-main';
+  const titleRow=document.createElement('div');titleRow.className='task-title';
+  const titleText=document.createElement('span');titleText.className='task-title-text';titleText.textContent=task.title;titleRow.appendChild(titleText);
+  const pri=document.createElement('span');pri.className=`badge badge-${task.priority||'medium'}`;pri.textContent={low:'Low',medium:'Medium',high:'High'}[task.priority]||'Medium';titleRow.appendChild(pri);
+  const rl=recLabel(task);if(rl){const b=document.createElement('span');b.className='badge badge-rec';b.textContent=rl;titleRow.appendChild(b);}
+  const slotBadge=document.createElement('span');slotBadge.className='badge';slotBadge.style.cssText='background:#EAF8F0;color:#1A6B44;border:1px solid #A0D9BB';slotBadge.textContent=`🗂️ ${parsedSlots(task).length} slots`;titleRow.appendChild(slotBadge);
+  header.appendChild(titleRow);
+  if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;header.appendChild(d);}
+  if(isAdmin){
+    const adminActions=document.createElement('div');adminActions.style.cssText='display:flex;gap:.4rem;margin-top:.5rem';
+    const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.onclick=()=>openEditModal(task);adminActions.appendChild(eb);
+    const del=document.createElement('button');del.className='btn btn-danger btn-xs';del.textContent='✕';del.onclick=()=>deleteTask(task.id);adminActions.appendChild(del);
+    header.appendChild(adminActions);
+  }
+  card.appendChild(header);
+  // Slot sub-rows
+  const slots=parsedSlots(task);
+  const slotContainer=document.createElement('div');slotContainer.className='slot-sub-list';
+  slots.forEach((slot,i)=>{
+    const oKey=occurrenceKey(task,i);
+    const occComps=completions.filter(c=>c.task_id===task.id&&c.occurrence_key===oKey);
+    const myComp=occComps.find(c=>c.user_id===currentUser?.id);
+    const myDone=!!myComp;
+    const inWindow=isInWindow(slot.start,slot.end);
+    const assignee=slot.assign_to?userMap[slot.assign_to]:null;
+    const sub=document.createElement('div');sub.className=`slot-sub-row${myDone?' done':''}${!inWindow&&!myDone?' locked':''}`;
+    const info=document.createElement('div');info.style.cssText='display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;flex:1';
+    const lbl=document.createElement('span');lbl.style.cssText='font-weight:600;font-size:.82rem';lbl.textContent=slot.label||(i===0?'🌅 Slot 1':'🌙 Slot 2');info.appendChild(lbl);
+    if(slot.start&&slot.end){const t=document.createElement('span');t.className='badge';t.style.cssText=inWindow?'background:#EAF8F0;color:#1A6B44;border:1px solid #A0D9BB':'background:#FFF8E0;color:#7A5500;border:1px solid #FFEAA0';t.textContent=`🕐 ${fmtTime(slot.start)}–${fmtTime(slot.end)}`;info.appendChild(t);}
+    if(assignee){const a=document.createElement('span');a.className='badge';a.textContent=`→ ${assignee.name}`;info.appendChild(a);}
+    if(task.points_value>0){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${fmtPts(task.points_value)}pt`;info.appendChild(p);}
+    sub.appendChild(info);
+    if(isAdmin){
+      const cnt=document.createElement('span');cnt.style.cssText='color:var(--muted);font-size:.74rem';cnt.textContent=`${occComps.length} done`;sub.appendChild(cnt);
+    } else {
+      const act=document.createElement('div');
+      if(myDone){const dc=document.createElement('span');dc.className='done-check';dc.textContent='✓';act.appendChild(dc);}
+      else if(!inWindow){const wl=document.createElement('span');wl.style.cssText='font-size:.76rem;color:#7A5500;font-weight:600';wl.textContent='Not yet';act.appendChild(wl);}
+      else{const btn=document.createElement('button');btn.className='btn btn-success btn-xs';btn.textContent='✓';btn.onclick=()=>completeTask(task,false,i,oKey);act.appendChild(btn);}
+      sub.appendChild(act);
+    }
+    slotContainer.appendChild(sub);
+  });
+  card.appendChild(slotContainer);
+  return card;
+}
+
+// Single grouped card for collab-specific siblings (same title, same creator)
+function buildCollabGroupCard(siblings,isAdmin){
+  if(!siblings.length) return null;
+  const task=siblings[0]; // use first for shared fields
+  const userMap=Object.fromEntries(users.map(u=>[u.id,u]));
+  const card=document.createElement('div');card.className='task-row grouped-card';
+  const header=document.createElement('div');header.className='task-main';
+  const titleRow=document.createElement('div');titleRow.className='task-title';
+  const titleText=document.createElement('span');titleText.className='task-title-text';titleText.textContent=task.title;titleRow.appendChild(titleText);
+  const pri=document.createElement('span');pri.className=`badge badge-${task.priority||'medium'}`;pri.textContent={low:'Low',medium:'Medium',high:'High'}[task.priority]||'Medium';titleRow.appendChild(pri);
+  const collabBadge=document.createElement('span');collabBadge.className='badge badge-collab';collabBadge.textContent=`🤝 Collab (${siblings.length} people)`;titleRow.appendChild(collabBadge);
+  const rl=recLabel(task);if(rl){const b=document.createElement('span');b.className='badge badge-rec';b.textContent=rl;titleRow.appendChild(b);}
+  if(task.points_value>0){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${fmtPts(task.points_value)}pt`;titleRow.appendChild(p);}
+  header.appendChild(titleRow);
+  if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;header.appendChild(d);}
+  // Admin controls (edit first sibling, delete all)
+  if(isAdmin){
+    const adminActions=document.createElement('div');adminActions.style.cssText='display:flex;gap:.4rem;margin-top:.5rem';
+    const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.onclick=()=>openEditModal(task);adminActions.appendChild(eb);
+    const del=document.createElement('button');del.className='btn btn-danger btn-xs';del.textContent='✕ All';del.title='Delete all related tasks';
+    del.onclick=async()=>{if(!confirm(`Delete all ${siblings.length} related tasks?`))return;for(const s of siblings)await deleteTask(s.id);};adminActions.appendChild(del);
+    header.appendChild(adminActions);
+  }
+  card.appendChild(header);
+  // Per-person sub-rows
+  const subList=document.createElement('div');subList.className='slot-sub-list';
+  siblings.forEach(sib=>{
+    const assignee=userMap[sib.assign_to];
+    const oKey=occurrenceKey(sib,0);
+    const done=completions.some(c=>c.task_id===sib.id&&c.user_id===sib.assign_to&&c.occurrence_key===oKey&&!c.points_voided);
+    const sub=document.createElement('div');sub.className=`slot-sub-row${done?' done':''}`;
+    const info=document.createElement('div');info.style.cssText='display:flex;align-items:center;gap:.5rem;flex:1';
+    const av=avatarEl(assignee||{name:'?',avatar_color:'#ccc'},'avatar-sm');info.appendChild(av);
+    const nm=document.createElement('span');nm.style.cssText='font-size:.85rem;font-weight:600';nm.textContent=assignee?.name||'Unknown';info.appendChild(nm);
+    sub.appendChild(info);
+    if(isAdmin){
+      const cnt=document.createElement('span');cnt.style.cssText='color:var(--muted);font-size:.74rem';cnt.textContent=done?'✓ Done':'Pending';sub.appendChild(cnt);
+    }
+    subList.appendChild(sub);
+  });
+  card.appendChild(subList);
+  return card;
 }
  
 // ══════════════════════════════════════════════════════════════
@@ -1722,17 +1825,35 @@ function renderAdminTasks(){
   const studentIds=new Set(campusUsers('student').map(u=>u.id));
   const peerTasks=[],stuTasks=[];
   ct.forEach(t=>{
-    // Delegated to a student = specific task whose assign_to is a student
-    // Collaborative = student-facing, goes to student section
-    const isStudentTask=(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to))||t.task_type==='collaborative';
+    const isStudentTask=(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to))||t.task_type==='collaborative'||t.task_type==='everyone';
     if(isStudentTask) stuTasks.push(t);
-    else peerTasks.push(t); // specific→staff/admin
+    else peerTasks.push(t);
   });
   $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
   $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
   peerTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>peerList.appendChild(r)));
-  stuTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>stuList.appendChild(r)));
+  renderGroupedTaskList(stuTasks,stuList,true);
 }
+// Groups collab-specific siblings into one card, renders others normally
+function renderGroupedTaskList(taskArr,container,isAdmin){
+  const rendered=new Set();
+  taskArr.forEach(t=>{
+    if(rendered.has(t.id)) return;
+    // Check for collab-specific siblings (same title+creator+campus, collab_required>1)
+    if(t.task_type==='specific'&&t.collab_required>1){
+      const siblings=taskArr.filter(s=>s.title===t.title&&s.created_by===t.created_by&&s.campus===t.campus&&s.task_type==='specific'&&s.collab_required>1);
+      if(siblings.length>1){
+        siblings.forEach(s=>rendered.add(s.id));
+        const card=buildCollabGroupCard(siblings,isAdmin);
+        if(card) container.appendChild(card);
+        return;
+      }
+    }
+    rendered.add(t.id);
+    buildTaskRows(t,isAdmin).forEach(r=>container.appendChild(r));
+  });
+}
+
 function renderAdminLb(){buildLb('admin-lb',campusUsers('student'));const l=$('lb-campus-label');if(l)l.textContent=CAMPUS_LABELS[activeCampus]||'';}
  
 function renderAdminMessages(){
@@ -1839,7 +1960,7 @@ function renderStaffTeamTasks(){
   $('no-staff-team-peer').classList.toggle('hidden',peerTasks.length>0);
   $('no-staff-delegated').classList.toggle('hidden',stuTasks.length>0);
   peerTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>peerList.appendChild(r)));
-  stuTasks.forEach(t=>buildTaskRows(t,true).forEach(r=>stuList.appendChild(r)));
+  renderGroupedTaskList(stuTasks,stuList,true);
 }
  
 function renderStaffTasks(){
@@ -1886,23 +2007,55 @@ function renderStudentHero(){
   const tab=$('student-tabs')?.querySelectorAll('.tab')?.[0];if(tab)tab.textContent=`📋 My Tasks (${myPersonalTasks().filter(({task,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey)).length})`;
 }
  
+// ── TASK DONE VISIBILITY ───────────────────────────────────────
+// Returns true if a non-recurring task should be hidden from task lists
+// because its completion condition has been fully met.
+function isTaskHidden(task, slotIdx, oKey, userId){
+  // Recurring tasks never disappear
+  if(task.recurrence&&task.recurrence!=='none') return false;
+
+  const occComps=completions.filter(c=>c.task_id===task.id&&c.occurrence_key===oKey&&!c.points_voided);
+
+  if(task.task_type==='specific'){
+    // Collab-specific siblings: hide once THIS user has completed it
+    // (other siblings stay visible for others until they complete theirs)
+    const myDone=occComps.some(c=>c.user_id===userId);
+    return myDone;
+  }
+
+  if(task.task_type==='collaborative'){
+    // Open collaborative: hide once completion limit is reached
+    return occComps.length>=task.collab_required;
+  }
+
+  if(task.task_type==='everyone'){
+    // Everyone task: hide for the current user once they've done it,
+    // and hide from all once the limit is reached (if limit set)
+    const myDone=occComps.some(c=>c.user_id===userId);
+    if(myDone) return true;
+    if(task.collab_required>1&&occComps.length>=task.collab_required) return true;
+    return false;
+  }
+
+  return false;
+}
+
 function myPersonalTasks(){
-  // Tasks assigned specifically to this worker:
-  // - task_type='specific' with their user ID
-  // - task_type='collaborative' with slot assign_to matching their ID (slot-specific collab)
   const result=[];
   tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
     const slots=parsedSlots(t);
     if(!slots.length){
-      // No slots — check if specifically assigned to this user
       const isPersonal=t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id);
-      if(isPersonal) result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});
+      if(!isPersonal) return;
+      const oKey=occurrenceKey(t,0);
+      if(!isTaskHidden(t,0,oKey,currentUser.id)) result.push({task:t,slotIdx:0,oKey,slot:null});
     } else {
-      // Has slots — include slots assigned specifically to this user
       slots.forEach((slot,i)=>{
         const st=slot.task_type||'everyone';
         const isPersonal=st==='specific'&&String(slot.assign_to)===String(currentUser?.id);
-        if(isPersonal) result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});
+        if(!isPersonal) return;
+        const oKey=occurrenceKey(t,i);
+        if(!isTaskHidden(t,i,oKey,currentUser.id)) result.push({task:t,slotIdx:i,oKey,slot});
       });
     }
   });
@@ -1910,20 +2063,19 @@ function myPersonalTasks(){
 }
 
 function myTeamTasks(){
-  // Tasks open to everyone or truly collaborative (not slot-specific)
   const result=[];
   tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
     const slots=parsedSlots(t);
     if(!slots.length){
-      // No slots — include everyone and collaborative tasks
-      if(t.task_type==='everyone'||t.task_type==='collaborative'){
-        result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});
-      }
+      if(t.task_type!=='everyone'&&t.task_type!=='collaborative') return;
+      const oKey=occurrenceKey(t,0);
+      if(!isTaskHidden(t,0,oKey,currentUser.id)) result.push({task:t,slotIdx:0,oKey,slot:null});
     } else {
-      // Has slots — only include slots with task_type='everyone'
       slots.forEach((slot,i)=>{
         const st=slot.task_type||'everyone';
-        if(st==='everyone') result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});
+        if(st!=='everyone') return;
+        const oKey=occurrenceKey(t,i);
+        if(!isTaskHidden(t,i,oKey,currentUser.id)) result.push({task:t,slotIdx:i,oKey,slot});
       });
     }
   });
@@ -1940,7 +2092,11 @@ function renderStudentTasks(){
   if(myList){
     myList.innerHTML='';
     const personal=myPersonalTasks();
-    $('no-student-mytasks')?.classList.toggle('hidden',personal.length>0);
+    const noMyEl=$('no-student-mytasks');
+    if(noMyEl){
+      noMyEl.classList.toggle('hidden',personal.length>0);
+      noMyEl.textContent=personal.length===0?'🎉 All done! Check back later.':'';
+    }
     personal.forEach(({task,slotIdx,slot})=>myList.appendChild(buildTaskRow(task,false,slotIdx,slot)));
   }
   // Team Tasks — everyone/collaborative
@@ -1948,7 +2104,11 @@ function renderStudentTasks(){
   if(teamList){
     teamList.innerHTML='';
     const team=myTeamTasks();
-    $('no-student-teamtasks')?.classList.toggle('hidden',team.length>0);
+    const noTeamEl=$('no-student-teamtasks');
+    if(noTeamEl){
+      noTeamEl.classList.toggle('hidden',team.length>0);
+      noTeamEl.textContent=team.length===0?'🎉 No open team tasks right now.':'';
+    }
     team.forEach(({task,slotIdx,slot})=>teamList.appendChild(buildTaskRow(task,false,slotIdx,slot)));
   }
 }

@@ -1813,23 +1813,29 @@ function renderAdminTeamTasks(){
   list_peer.innerHTML='';list_stu.innerHTML='';
   const ct=campusTasks();
   const lbl=$('tasks-campus-label');if(lbl)lbl.textContent=CAMPUS_LABELS[activeCampus]||'';
-  const peerTasks=ct.filter(t=>{
-    if(!t.assign_to)return false;
-    const u=users.find(x=>x.id===t.assign_to);
-    return u&&(u.role==='staff'||u.role==='admin')&&t.assign_to!==currentUser.id;
+  const studentIds=new Set(campusUsers('student').map(u=>u.id));
+
+  const peerTasks=[], stuTasks=[];
+  ct.forEach(t=>{
+    // Everyone / collaborative with no specific assignee → student-facing
+    if(t.task_type==='everyone'||t.task_type==='collaborative'){stuTasks.push(t);return;}
+    // Specific tasks
+    if(t.task_type==='specific'){
+      if(!t.assign_to){stuTasks.push(t);return;} // unassigned, show in student section
+      if(studentIds.has(t.assign_to)){stuTasks.push(t);return;}
+      // Assigned to staff/admin (including current user's own — those are in My Tasks,
+      // but still show in Team Tasks for admin visibility)
+      peerTasks.push(t);
+    }
   });
-  const stuTasks=ct.filter(t=>{
-    if(t.task_type==='collaborative')return true;
-    if(!t.assign_to)return false;
-    const u=users.find(x=>x.id===t.assign_to);
-    return u&&u.role==='student';
-  });
-  const filteredPeer=sortTeamTasks(peerTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  const filteredStu=sortTeamTasks(stuTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  $('no-tasks-admin-peer').classList.toggle('hidden',filteredPeer.length>0);
-  $('no-tasks-admin-student').classList.toggle('hidden',filteredStu.length>0);
-  filteredPeer.forEach(t=>buildTaskRows(t,true).forEach(r=>list_peer.appendChild(r)));
-  renderGroupedTaskList(filteredStu,list_stu,true);
+
+  // Admin view shows ALL tasks including done ones — sort so done go to bottom
+  const sortedPeer=sortTeamTasks(peerTasks);
+  const sortedStu=sortTeamTasks(stuTasks);
+  $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
+  $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
+  sortedPeer.forEach(t=>buildTaskRows(t,true).forEach(r=>list_peer.appendChild(r)));
+  renderGroupedTaskList(sortedStu,list_stu,true);
 }
 
 function onAdminRecurrenceChange(){const v=$('at-recurrence').value;$('at-rec-weekly').classList.toggle('hidden',v!=='weekly');$('at-rec-monthly').classList.toggle('hidden',v!=='monthly');$('at-rec-interval').classList.toggle('hidden',v!=='interval');}
@@ -1848,26 +1854,6 @@ async function adminAddMyTask(){
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }
 
-function renderAdminTasks(){
-  const peerList=$('admin-task-list-peer'),stuList=$('admin-task-list-student');
-  if(!peerList||!stuList)return;
-  peerList.innerHTML='';stuList.innerHTML='';
-  $('tasks-campus-label').textContent=CAMPUS_LABELS[activeCampus]||'';
-  const ct=campusTasks();
-  const studentIds=new Set(campusUsers('student').map(u=>u.id));
-  const peerTasks=[],stuTasks=[];
-  ct.forEach(t=>{
-    const isStudentTask=(t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to))||t.task_type==='collaborative'||t.task_type==='everyone';
-    if(isStudentTask) stuTasks.push(t);
-    else peerTasks.push(t);
-  });
-  const fp=sortTeamTasks(peerTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  const fs=sortTeamTasks(stuTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  $('no-tasks-admin-peer').classList.toggle('hidden',fp.length>0);
-  $('no-tasks-admin-student').classList.toggle('hidden',fs.length>0);
-  fp.forEach(t=>buildTaskRows(t,true).forEach(r=>peerList.appendChild(r)));
-  renderGroupedTaskList(fs,stuList,true);
-}
 // Groups collab-specific siblings into one card, renders others normally
 function renderGroupedTaskList(taskArr,container,isAdmin){
   const rendered=new Set();

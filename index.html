@@ -725,6 +725,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="field">
                   <label>Assign to</label>
                   <select class="input" id="st2-assign-type" onchange="onStaff2AssignTypeChange()">
+                    <option value="everyone">📢 Everyone</option>
                     <option value="specific_student">🎓 Specific Student Worker</option>
                     <option value="collab_students">🤝 Collaborative — all students</option>
                     <option value="collab_specific_students">🤝 Collaborative — specific students</option>
@@ -2382,7 +2383,7 @@ function onStaff2AssignTypeChange(){
   $('st2-specific-user-field').classList.toggle('hidden',v!=='specific_student');
   $('st2-request-user-field').classList.toggle('hidden',v!=='request');
   $('st2-collab-specific-field').classList.toggle('hidden',!isCollabSpecific);
-  $('st2-collab-limit-field').classList.toggle('hidden',!isCollab);
+  $('st2-collab-limit-field').classList.toggle('hidden',!isCollab&&v!=='everyone');
   $('st2-pts-row').classList.toggle('hidden',!isStudent);
   $('st2-no-pts-row').classList.toggle('hidden',isStudent);
   if(v==='specific_student') _fillSelect($('st2-assign-user'),campusUsers('student'));
@@ -2527,7 +2528,9 @@ async function staffAddTask2(){
   const collabLimit=Number($('st2-collab-required').value)||2;
   setSyncing(true);
   try{
-    if(atype==='specific_student'){
+    if(atype==='everyone'){
+      await _insertTask({title,desc:($('st2-desc').value||'').trim(),pts,priority,taskType:'everyone',rec,recDay,recInt,slotConfig,onePer,collabRequired:Number($('st2-collab-required').value)||2});
+    } else if(atype==='specific_student'){
       const assignTo=$('st2-assign-user').value;if(!assignTo)return alert('Please select a student.');
       await _insertTask({title,desc:($('st2-desc').value||'').trim(),pts,priority,taskType:'specific',assignTo,rec,recDay,recInt,slotConfig,onePer});
       await sendNotification({to_user:assignTo,type:'message',title:'New Task Assigned',body:`${currentUser.name} assigned you: "${title}"`,icon:'📋',campus:activeCampus});

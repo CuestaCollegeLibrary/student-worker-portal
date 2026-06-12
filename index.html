@@ -1829,9 +1829,9 @@ function renderAdminTeamTasks(){
     }
   });
 
-  // Admin view shows ALL tasks including done ones — sort so done go to bottom
-  const sortedPeer=sortTeamTasks(peerTasks);
-  const sortedStu=sortTeamTasks(stuTasks);
+  // Sort and filter — done non-recurring tasks drop off, incomplete sorted by points asc
+  const sortedPeer=sortTeamTasks(peerTasks.filter(t=>!isTeamTaskFullyDone(t)));
+  const sortedStu=sortTeamTasks(stuTasks.filter(t=>!isTeamTaskFullyDone(t)));
   $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
   $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
   sortedPeer.forEach(t=>buildTaskRows(t,true).forEach(r=>list_peer.appendChild(r)));

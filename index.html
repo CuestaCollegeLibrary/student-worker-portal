@@ -2342,40 +2342,21 @@ function triggerPasswordReset(){if(profileUser)forcePasswordReset(profileUser.id
 // ══════════════════════════════════════════════════════════════
 // CRUD — TASKS
 // ══════════════════════════════════════════════════════════════
-function onAssignTypeChange(){
-  const v=$('t-assign-type').value;
-  const isStudentTask=(v==='student'||v==='collaborative');
-  $('t-pts-row').style.display=isStudentTask?'':'none';
-  $('t-no-pts-row').style.display=isStudentTask?'none':'';
-  $('t-specific-user-field').classList.toggle('hidden',!['specific_staff','specific_student'].includes(v));
-  $('t-collab-specific-field').classList.toggle('hidden',v!=='collab_specific');
-  $('t-collab-limit-field').classList.toggle('hidden',!v.startsWith('collab'));
-  if(v==='specific_staff'){
-    $('t-specific-user-label').textContent='Select Staff / Admin';
-    const sel=$('t-assign-user');sel.innerHTML='<option value="">— Select —</option>';
-    [...campusUsers('admin'),...campusUsers('staff')].forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);});
-  } else if(v==='student'){
-    $('t-specific-user-label').textContent='Select Student Worker';
-    const sel=$('t-assign-user');sel.innerHTML='<option value="">— Select —</option>';
-    campusUsers('student').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});
-  }
-}
 function onRecurrenceChange(){const v=$('t-recurrence').value;$('rec-weekly-opts').classList.toggle('hidden',v!=='weekly');$('rec-monthly-opts').classList.toggle('hidden',v!=='monthly');$('rec-interval-opts').classList.toggle('hidden',v!=='interval');}
 // ── ASSIGN TYPE HELPERS ────────────────────────────────────────
 function _fillSelect(sel,users){sel.innerHTML='<option value="">— Select —</option>';users.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name}${u.role!=='student'?' ('+u.role+')':''}`;sel.appendChild(o);});}
 function _fillMulti(sel,users){sel.innerHTML='';users.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});}
 
-function _isStudentAssignType(v){return ['specific_student','collab_students','collab_specific_students','collab_everyone','collab_specific'].includes(v);}
+function _isStudentAssignType(v){return ['everyone','specific_student','collab_students','collab_specific_students','collab_everyone','collab_specific'].includes(v);}
 
 function onAssignTypeChange(){
   const v=$('t-assign-type').value;
   const isStudent=_isStudentAssignType(v);
-  const isStaffSpecific=v==='specific_staff';
   const isCollabSpecific=v==='collab_specific'||v==='collab_specific_students';
   const isCollabAny=v.startsWith('collab');
   $('t-specific-user-field').classList.toggle('hidden',!['specific_staff','specific_student'].includes(v));
   $('t-collab-specific-field').classList.toggle('hidden',!isCollabSpecific);
-  $('t-collab-limit-field').classList.toggle('hidden',!isCollabAny);
+  $('t-collab-limit-field').classList.toggle('hidden',!isCollabAny&&v!=='everyone');
   $('t-pts-row').classList.toggle('hidden',!isStudent);
   $('t-no-pts-row').style.display=isStudent?'none':'';
   if(v==='specific_staff'){

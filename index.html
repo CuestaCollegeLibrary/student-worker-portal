@@ -1255,7 +1255,7 @@ function ptsPerHour(user){
 function occurrenceKey(task,slotIdx=0,now=new Date()) {
   const rec=task.recurrence||'none';
   const suf=`-s${slotIdx}`;
-  if(rec==='none') return `once${suf}`;
+  if(rec==='none') return 'once';  // no slot suffix — one-time tasks have one occurrence key
   if(rec==='daily') return now.toISOString().slice(0,10)+suf;
   if(rec==='weekly'){
     const d=new Date(now);d.setHours(0,0,0,0);
@@ -2014,30 +2014,39 @@ function isTaskHidden(task, slotIdx, oKey, userId){
   // Recurring tasks never disappear
   if(task.recurrence&&task.recurrence!=='none') return false;
 
-  const occComps=completions.filter(c=>c.task_id===task.id&&c.occurrence_key===oKey&&!c.points_voided);
+  // Match completions for this task regardless of old 'once' vs new 'once-s0' format
+  const occComps=completions.filter(c=>{
+    if(c.task_id!==task.id||c.points_voided) return false;
+    return c.occurrence_key===oKey||c.occurrence_key==='once'||c.occurrence_key===`once-s${slotIdx}`;
+  });
 
   if(task.task_type==='specific'){
-    // Collab-specific siblings: hide once THIS user has completed it
-    // (other siblings stay visible for others until they complete theirs)
-    const myDone=occComps.some(c=>c.user_id===userId);
-    return myDone;
+    return occComps.some(c=>c.user_id===userId);
   }
-
   if(task.task_type==='collaborative'){
-    // Open collaborative: hide once completion limit is reached
     return occComps.length>=task.collab_required;
   }
-
   if(task.task_type==='everyone'){
-    // Everyone task: hide for the current user once they've done it,
-    // and hide from all once the limit is reached (if limit set)
     const myDone=occComps.some(c=>c.user_id===userId);
     if(myDone) return true;
     if(task.collab_required>1&&occComps.length>=task.collab_required) return true;
     return false;
   }
-
   return false;
+}
+
+// Sort tasks: incomplete first, then by points ascending
+function sortTasks(items){
+  return [...items].sort((a,b)=>{
+    const aDone=completions.some(c=>c.task_id===a.task.id&&c.user_id===currentUser?.id&&c.occurrence_key===a.oKey&&!c.points_voided);
+    const bDone=completions.some(c=>c.task_id===b.task.id&&c.user_id===currentUser?.id&&c.occurrence_key===b.oKey&&!c.points_voided);
+    if(aDone!==bDone) return aDone?1:-1; // incomplete first
+    // Within each group: open time window first, then by points ascending
+    const aInWin=a.slot?isInWindow(a.slot.start,a.slot.end):true;
+    const bInWin=b.slot?isInWindow(b.slot.start,b.slot.end):true;
+    if(aInWin!==bInWin) return aInWin?-1:1;
+    return (a.task.points_value||0)-(b.task.points_value||0); // lowest pts first
+  });
 }
 
 function myPersonalTasks(){
@@ -2059,7 +2068,7 @@ function myPersonalTasks(){
       });
     }
   });
-  return result;
+  return sortTasks(result);
 }
 
 function myTeamTasks(){
@@ -2079,7 +2088,7 @@ function myTeamTasks(){
       });
     }
   });
-  return result;
+  return sortTasks(result);
 }
 
 function myVisibleTasks(){
@@ -2613,7 +2622,9 @@ async function saveEdit(){
     if(atype==='collab_specific'){
       const chosen=[...$('edit-collab-users').selectedOptions].map(o=>o.value);
       if(!chosen.length){alert('Please select at least one person.');setSyncing(false);return;}
-      await tursoFetch('DELETE FROM tasks WHERE id=?',[editingTaskId]);
+      // Delete ALL siblings (same title+creator+campus+specific+collab_required>1), not just the one being edited
+      const siblings=tasks.filter(s=>s.title===oldTask.title&&s.created_by===oldTask.created_by&&s.campus===oldTask.campus&&s.task_type==='specific'&&s.collab_required>1);
+      for(const s of siblings) await tursoFetch('DELETE FROM tasks WHERE id=?',[s.id]);
       for(const uid of chosen){
         await _insertTask({title,desc,pts:newPts,deadline,priority,taskType:'specific',assignTo:uid,rec,recDay,recInt,slotConfig,onePer,collabRequired:collabLimit,createdByRole:oldTask.created_by_role||currentUser.role});
         await sendNotification({to_user:uid,type:'message',title:'Task Updated',body:`"${title}" has been assigned to you.`,icon:'📋',campus:activeCampus});

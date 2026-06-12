@@ -958,9 +958,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div class="form-grid">
       <div class="field"><label>Title</label><input class="input" id="edit-title"/></div>
       <div class="field"><label>Description</label><textarea class="input" id="edit-desc"></textarea></div>
-      <div class="form-row col2">
-        <div class="field"><label>Points</label><input class="input" id="edit-pts" type="number" min="1" max="500"/></div>
+      <div class="form-row col2" id="edit-pts-row">
+        <div class="field"><label>Points</label><input class="input" id="edit-pts" type="number" min="0" max="500"/></div>
         <div class="field"><label>Priority</label><select class="input" id="edit-priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+      </div>
+      <div class="form-row col2 hidden" id="edit-no-pts-row">
+        <div class="field"><label style="color:var(--faint)">Points</label><input class="input" value="N/A — staff task" disabled style="color:var(--faint);background:var(--surface2)"/></div>
+        <div class="field"><label>Priority</label><select class="input" id="edit-priority-np"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
       </div>
       <div class="field"><label>Deadline</label><input class="input" id="edit-deadline" type="date"/></div>
       <div class="field" id="edit-collab-wrap" style="display:none"><label>Required completions</label><input class="input" id="edit-collab-required" type="number" min="2" max="20"/></div>
@@ -1857,23 +1861,45 @@ function renderStudentHero(){
 }
  
 function myPersonalTasks(){
-  // Tasks assigned specifically to this worker (specific type with their ID)
+  // Tasks assigned specifically to this worker:
+  // - task_type='specific' with their user ID
+  // - task_type='collaborative' with slot assign_to matching their ID (slot-specific collab)
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus&&t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id)).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
     const slots=parsedSlots(t);
-    if(!slots.length){result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});}
-    else{slots.forEach((slot,i)=>{const st=slot.task_type||'everyone';if(st==='everyone'||(st==='specific'&&String(slot.assign_to)===String(currentUser?.id)))result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});});}
+    if(!slots.length){
+      // No slots — check if specifically assigned to this user
+      const isPersonal=t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id);
+      if(isPersonal) result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});
+    } else {
+      // Has slots — include slots assigned specifically to this user
+      slots.forEach((slot,i)=>{
+        const st=slot.task_type||'everyone';
+        const isPersonal=st==='specific'&&String(slot.assign_to)===String(currentUser?.id);
+        if(isPersonal) result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});
+      });
+    }
   });
   return result;
 }
 
 function myTeamTasks(){
-  // Tasks open to everyone or collaborative
+  // Tasks open to everyone or truly collaborative (not slot-specific)
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus&&(t.task_type==='everyone'||t.task_type==='collaborative')).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
     const slots=parsedSlots(t);
-    if(!slots.length){result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});}
-    else{slots.forEach((slot,i)=>{const st=slot.task_type||'everyone';if(st==='everyone')result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});});}
+    if(!slots.length){
+      // No slots — include everyone and collaborative tasks
+      if(t.task_type==='everyone'||t.task_type==='collaborative'){
+        result.push({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null});
+      }
+    } else {
+      // Has slots — only include slots with task_type='everyone'
+      slots.forEach((slot,i)=>{
+        const st=slot.task_type||'everyone';
+        if(st==='everyone') result.push({task:t,slotIdx:i,oKey:occurrenceKey(t,i),slot});
+      });
+    }
   });
   return result;
 }
@@ -2332,7 +2358,13 @@ async function deleteTask(id){
 // ══════════════════════════════════════════════════════════════
 function openEditModal(task){
   editingTaskId=task.id;$('edit-title').value=task.title||'';$('edit-desc').value=task.description||'';
-  $('edit-pts').value=task.points_value||10;$('edit-priority').value=task.priority||'medium';$('edit-deadline').value=task.deadline||'';
+  const hasPoints=task.points_value>0;
+  $('edit-pts-row').classList.toggle('hidden',!hasPoints);
+  $('edit-no-pts-row').classList.toggle('hidden',hasPoints);
+  $('edit-pts').value=task.points_value||0;
+  $('edit-priority').value=task.priority||'medium';
+  $('edit-priority-np').value=task.priority||'medium';
+  $('edit-deadline').value=task.deadline||'';
   $('edit-recurrence').value=task.recurrence||'none';$('edit-rec-weekday').value=task.recurrence_day??1;
   $('edit-rec-monthday').value=task.recurrence_day??1;$('edit-rec-interval-val').value=task.recurrence_interval??7;
   $('edit-collab-wrap').style.display=task.task_type==='collaborative'?'':'none';$('edit-collab-required').value=task.collab_required||2;
@@ -2351,7 +2383,11 @@ function closeEditModal(){$('edit-modal').classList.remove('show');editingTaskId
  
 async function saveEdit(){
   if(!editingTaskId)return;
-  const newPts=Number($('edit-pts').value)||10,rec=$('edit-recurrence').value;
+  const oldTask=tasks.find(t=>t.id===editingTaskId);
+  const hasPoints=oldTask?.points_value>0;
+  const newPts=hasPoints?Number($('edit-pts').value)||0:0;
+  const priority=hasPoints?$('edit-priority').value:$('edit-priority-np').value;
+  const rec=$('edit-recurrence').value;
   const recDay=rec==='weekly'?Number($('edit-rec-weekday').value):rec==='monthly'?Number($('edit-rec-monthday').value):null;
   const recInt=rec==='interval'?Number($('edit-rec-interval-val').value):null;
   const slotConfig=editTaskSlots.length?JSON.stringify(editTaskSlots):null;
@@ -2359,8 +2395,8 @@ async function saveEdit(){
   try{
     const newAssignTo=$('edit-assign-user')?.value||null;
     await tursoFetch('UPDATE tasks SET title=?,description=?,points_value=?,deadline=?,priority=?,collab_required=?,recurrence=?,recurrence_interval=?,recurrence_day=?,slot_config=?,one_per_worker_day=?,assign_to=COALESCE(NULLIF(?,\'\'),assign_to) WHERE id=?',
-      [($('edit-title').value||'').trim(),($('edit-desc').value||'').trim()||null,newPts,$('edit-deadline').value||null,$('edit-priority').value,Number($('edit-collab-required').value)||2,rec,recInt,recDay,slotConfig,$('edit-one-per-worker').checked?1:0,newAssignTo||'',editingTaskId]);
-    const oldTask=tasks.find(t=>t.id===editingTaskId),oldPts=oldTask?.points_value||10,diff=newPts-oldPts;
+      [($('edit-title').value||'').trim(),($('edit-desc').value||'').trim()||null,newPts,$('edit-deadline').value||null,priority,Number($('edit-collab-required').value)||2,rec,recInt,recDay,slotConfig,$('edit-one-per-worker').checked?1:0,newAssignTo||'',editingTaskId]);
+    const oldPts=oldTask?.points_value??0,diff=newPts-oldPts;
     if(diff!==0){
       const adj={};completions.filter(c=>c.task_id===editingTaskId&&!c.points_voided).forEach(c=>{adj[c.user_id]=(adj[c.user_id]||0)+diff;});
       const b=Object.entries(adj).map(([uid,d])=>({sql:'UPDATE users SET points=MAX(0,points+?) WHERE id=?',args:[d,uid]}));

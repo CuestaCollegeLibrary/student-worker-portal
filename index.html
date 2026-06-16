@@ -143,6 +143,28 @@ textarea.input{resize:vertical;min-height:68px;}
 .task-desc{color:var(--muted);font-size:.78rem;margin-top:.2rem;}
 .task-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;}
 .task-assign{color:var(--muted);font-size:.76rem;}
+/* ── SCHEDULE GRID ── */
+.sched-grid{display:grid;grid-template-columns:60px repeat(7,1fr);gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;font-size:.74rem;min-width:520px}
+.sched-grid-header{background:var(--surface2);font-weight:700;text-align:center;padding:.45rem .2rem;border-bottom:1px solid var(--border);border-right:1px solid var(--border);color:var(--muted)}
+.sched-grid-header:last-child{border-right:none}
+.sched-time-col{background:var(--surface2);color:var(--faint);font-size:.7rem;padding:.3rem .4rem;text-align:right;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.sched-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:24px;position:relative}
+.sched-cell:last-child{border-right:none}
+.sched-block{position:absolute;left:2px;right:2px;border-radius:4px;padding:2px 4px;font-size:.66rem;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;z-index:1;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.shift-row{display:flex;align-items:center;gap:.65rem;padding:.6rem .8rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:.84rem}
+.shift-row-info{flex:1;min-width:0}
+.shift-row-name{font-weight:700;font-size:.85rem}
+.shift-row-time{color:var(--muted);font-size:.76rem}
+.shift-row.override{background:#FFF8E0;border-color:#FFEAA0}
+.shift-row.day-off{background:#FFF0F2;border-color:#F4A7B9;opacity:.7}
+.fairness-row{display:flex;align-items:center;gap:.6rem;padding:.4rem 0}
+.fairness-bar-wrap{flex:1;background:var(--border);border-radius:4px;height:7px;overflow:hidden}
+.fairness-bar{height:7px;border-radius:4px;transition:width .4s}
+.suggest-panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1rem;margin-top:.85rem}
+.suggest-row{display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;border-radius:8px;cursor:pointer;transition:background .15s;border:1px solid transparent}
+.suggest-row:hover{background:var(--border)}
+.suggest-row.best{background:#EAF8F0;border-color:#A0D9BB}
+.suggest-score{font-size:.77rem;color:var(--muted);white-space:nowrap;text-align:right}
 .grouped-card{flex-direction:column;align-items:stretch;gap:0;}
 .slot-sub-list{display:flex;flex-direction:column;gap:0;margin-top:.6rem;border-top:1px solid var(--border);}
 .slot-sub-row{display:flex;align-items:center;gap:.75rem;padding:.55rem .25rem;border-bottom:1px solid var(--border);font-size:.84rem;}
@@ -442,6 +464,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <button class="tab active" onclick="adminTab('mytasks')">📋 My Tasks</button>
         <button class="tab" onclick="adminTab('teamtasks')">🗂️ Team Tasks</button>
         <button class="tab" onclick="adminTab('team')">👥 Team</button>
+        <button class="tab" id="admin-schedule-tab" onclick="adminTab('schedule')">📅 Schedule</button>
         <button class="tab" onclick="adminTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="adminTab('messages')">💌 Messages</button>
         <button class="tab" id="admin-notif-tab" onclick="adminTab('notifications')">🔔 Notifications</button>
@@ -543,6 +566,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="rec-options hidden" id="rec-monthly-opts"><div class="field"><label>Resets on day of month</label><input class="input" id="t-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
                 <div class="rec-options hidden" id="rec-interval-opts"><div class="field"><label>Every how many days?</label><input class="input" id="t-rec-interval" type="number" min="2" max="365" value="7"/></div></div>
                 <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addSlot()">+ Add Slot</button></label><div id="slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
+                <div id="t-suggest-panel" class="suggest-panel hidden" style="display:none"></div>
                 <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="t-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
                 <button class="btn btn-primary" onclick="addTask()">Create Task</button>
               </div>
@@ -648,6 +672,79 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <h2 class="section-title">Notifications</h2>
         <div id="admin-notif-list" style="display:flex;flex-direction:column;gap:.65rem"></div>
         <p class="muted hidden" id="no-admin-notifs" style="font-size:.88rem">No notifications.</p>
+      </div>
+
+      <!-- SCHEDULE TAB (SLO only) -->
+      <div id="admin-schedule" class="hidden">
+        <div class="two-col">
+          <div>
+            <h2 class="section-title">Weekly Schedule — <span style="color:var(--campus)">SLO Campus</span></h2>
+            <p class="muted" style="font-size:.84rem;margin-bottom:1.25rem">Base schedule repeats every week. Add date-specific overrides for sick days, swaps, or makeup shifts.</p>
+
+            <!-- Weekly grid -->
+            <div id="schedule-grid" style="overflow-x:auto;margin-bottom:1.5rem"></div>
+
+            <!-- Shifts list -->
+            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem">All Shifts</h3>
+            <div id="schedule-shift-list" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            <p class="muted hidden" id="no-shifts-msg" style="font-size:.88rem;margin-top:.5rem">No shifts scheduled yet.</p>
+          </div>
+          <div class="sticky-panel">
+            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
+              <h3 id="shift-form-title">Add Shift</h3>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Worker</label>
+                  <select class="input" id="shift-worker"><option value="">— Select —</option></select>
+                </div>
+                <div class="field">
+                  <label>Type</label>
+                  <select class="input" id="shift-type" onchange="onShiftTypeChange()">
+                    <option value="recurring">🔁 Weekly recurring</option>
+                    <option value="override">📅 Specific date (override)</option>
+                  </select>
+                </div>
+                <div class="field" id="shift-day-field">
+                  <label>Day of week</label>
+                  <select class="input" id="shift-day">
+                    <option value="0">Sunday</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                  </select>
+                </div>
+                <div class="field hidden" id="shift-date-field">
+                  <label>Specific date</label>
+                  <input class="input" id="shift-date" type="date"/>
+                </div>
+                <div class="form-row col2">
+                  <div class="field"><label>Start time</label><input class="input" id="shift-start" type="time"/></div>
+                  <div class="field"><label>End time</label><input class="input" id="shift-end" type="time"/></div>
+                </div>
+                <div class="field">
+                  <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+                    <input type="checkbox" id="shift-off" style="accent-color:var(--pink);width:15px;height:15px"/>
+                    Mark as day off (override only)
+                  </label>
+                </div>
+                <div style="display:flex;gap:.5rem">
+                  <button class="btn btn-primary" style="flex:1" onclick="saveShift()">Save Shift</button>
+                  <button class="btn btn-ghost" id="shift-cancel-btn" style="display:none" onclick="cancelShiftEdit()">Cancel</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Fairness dashboard -->
+            <div class="form-panel" style="margin-top:1rem">
+              <h3>⚖️ Fairness This Semester</h3>
+              <p class="muted" style="font-size:.78rem;margin-bottom:.75rem">Points earned ÷ scheduled hours</p>
+              <div id="fairness-list" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            </div>
+          </div>
+        </div>
       </div>
  
     </div>
@@ -766,6 +863,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="rec-options hidden" id="st2-rec-monthly"><div class="field"><label>Resets on day</label><input class="input" id="st2-rec-monthday" type="number" min="1" max="28" value="1"/></div></div>
                 <div class="rec-options hidden" id="st2-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st2-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
                 <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addSt2Slot()">+ Add Slot</button></label><div id="st2-slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
+                <div id="st2-suggest-panel" class="suggest-panel" style="display:none"></div>
                 <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="st2-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
                 <button class="btn btn-primary" onclick="staffAddTask2()">Create Task</button>
               </div>
@@ -1311,12 +1409,13 @@ const VIEWS=['landing','login-view','pw-reset-view','app-shell','db-error'];
 function showView(id){VIEWS.forEach(v=>$(v).classList.toggle('hidden',v!==id));}
  
 function adminTab(name){
-  const tabs=['mytasks','teamtasks','team','leaderboard','messages','notifications'];
+  const tabs=['mytasks','teamtasks','team','schedule','leaderboard','messages','notifications'];
   tabs.forEach(t=>$(`admin-${t}`).classList.toggle('hidden',t!==name));
   $('admin-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='notifications') renderAdminNotifications();
   if(name==='mytasks') renderAdminMyTasks();
   if(name==='teamtasks') renderAdminTeamTasks();
+  if(name==='schedule') renderScheduleTab();
 }
 function staffTab(name){
   const tabs=['mytasks','teamtasks','team','leaderboard','messages','notifications'];
@@ -1337,6 +1436,377 @@ function studentTab(name){
 // ══════════════════════════════════════════════════════════════
 // DATABASE INIT + LOAD
 // ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// SCHEDULE SYSTEM (SLO only)
+// ══════════════════════════════════════════════════════════════
+let schedules = [];           // loaded from DB
+let editingShiftId = null;    // for edit mode
+const SCHED_DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const SCHED_DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const HOUR_START = 7, HOUR_END = 21; // display 7am–9pm
+
+// ── DB LOAD (called inside loadData) ──
+async function loadSchedules(){
+  schedules = await tursoFetch('SELECT * FROM schedules WHERE campus=? ORDER BY day_of_week,start_time',['SLO']);
+}
+
+// ── FAIRNESS SCORE ──
+// Points earned ÷ total scheduled hours this semester per worker
+function scheduledHoursSince(userId, sinceDate){
+  const user = users.find(u => u.id === userId);
+  if(!user) return 0;
+  const since = new Date(sinceDate || user.created_at || '2024-01-01');
+  const now = new Date();
+  // Count recurring shifts
+  let totalHrs = 0;
+  const recurringShifts = schedules.filter(s => s.user_id === userId && !s.specific_date && !s.is_day_off);
+  // Walk week by week from since to now
+  const msPerWeek = 7 * 24 * 3600 * 1000;
+  const weekCount = Math.max(1, Math.ceil((now - since) / msPerWeek));
+  recurringShifts.forEach(s => {
+    const hrs = timeToHours(s.end_time) - timeToHours(s.start_time);
+    totalHrs += hrs * weekCount;
+  });
+  // Add specific date overrides (additions)
+  schedules.filter(s => s.user_id === userId && s.specific_date && !s.is_day_off).forEach(s => {
+    const d = new Date(s.specific_date);
+    if(d >= since && d <= now){
+      // Check if this overrides a recurring shift or is extra
+      totalHrs += timeToHours(s.end_time) - timeToHours(s.start_time);
+    }
+  });
+  // Subtract day-offs
+  schedules.filter(s => s.user_id === userId && s.specific_date && (s.is_day_off==='1'||s.is_day_off===1)).forEach(s => {
+    const d = new Date(s.specific_date);
+    if(d >= since && d <= now){
+      // Find the recurring shift for that day and subtract it
+      const dow = d.getDay();
+      const rec = schedules.find(r => r.user_id === userId && !r.specific_date && Number(r.day_of_week) === dow);
+      if(rec) totalHrs -= timeToHours(rec.end_time) - timeToHours(rec.start_time);
+    }
+  });
+  return Math.max(0, totalHrs);
+}
+
+function timeToHours(t){ if(!t) return 0; const [h,m] = t.split(':').map(Number); return h + m/60; }
+function minsFromMidnight(t){ if(!t) return 0; const [h,m] = t.split(':').map(Number); return h*60+m; }
+
+function fairnessScore(userId){
+  const user = users.find(u => u.id === userId);
+  if(!user) return 0;
+  const hrs = scheduledHoursSince(userId);
+  if(!hrs) return 0;
+  return Math.round((user.points / hrs) * 100) / 100;
+}
+
+// Returns workers scheduled on a given date (or today), accounting for overrides
+function workersScheduledOn(date){
+  if(!date) date = new Date();
+  const dow = date.getDay();
+  const dateStr = date.toISOString().slice(0,10);
+  const sloStudents = campusUsers('student').filter(u => u.campus === 'SLO');
+  return sloStudents.filter(u => {
+    // Check for day-off override
+    const dayOff = schedules.find(s => s.user_id === u.id && s.specific_date === dateStr && (s.is_day_off==='1'||s.is_day_off===1));
+    if(dayOff) return false;
+    // Check for specific date override
+    const override = schedules.find(s => s.user_id === u.id && s.specific_date === dateStr && !s.is_day_off);
+    if(override) return true;
+    // Check recurring
+    return schedules.some(s => s.user_id === u.id && !s.specific_date && Number(s.day_of_week) === dow);
+  });
+}
+
+// Get shift for a worker on a date (for display)
+function workerShiftOn(userId, date){
+  if(!date) date = new Date();
+  const dow = date.getDay();
+  const dateStr = date.toISOString().slice(0,10);
+  const override = schedules.find(s => s.user_id === userId && s.specific_date === dateStr && !s.is_day_off);
+  if(override) return override;
+  return schedules.find(s => s.user_id === userId && !s.specific_date && Number(s.day_of_week) === dow) || null;
+}
+
+// ── AUTO-ASSIGN LOGIC FOR ALL-DAY TASKS ──
+function autoAssignAllDay(){
+  const today = new Date();
+  const workers = workersScheduledOn(today);
+  if(!workers.length) return null; // no one scheduled
+  const pts = workers.map(u => u.points);
+  const maxPts = Math.max(...pts), minPts = Math.min(...pts);
+  if(maxPts - minPts <= 10){
+    return { type: 'everyone', workers };
+  }
+  // Assign to worker with lowest fairness score (most behind)
+  const sorted = [...workers].sort((a,b) => fairnessScore(a.id) - fairnessScore(b.id));
+  return { type: 'specific', worker: sorted[0], workers };
+}
+
+// ── WORKER SUGGESTION PANEL (for timed tasks) ──
+function buildSuggestionPanel(startTime, endTime, containerId){
+  const c = $(containerId); if(!c) return;
+  c.innerHTML = '';
+  if(!startTime || !endTime){ c.style.display='none'; return; }
+  c.style.display = '';
+  const today = new Date();
+  const dow = today.getDay();
+  const dateStr = today.toISOString().slice(0,10);
+  const sStart = minsFromMidnight(startTime), sEnd = minsFromMidnight(endTime);
+  // Find SLO students with a shift overlapping the time window today
+  const sloStudents = campusUsers('student').filter(u => u.campus === 'SLO');
+  const candidates = sloStudents.map(u => {
+    const shift = workerShiftOn(u.id, today);
+    if(!shift) return null;
+    const shStart = minsFromMidnight(shift.start_time), shEnd = minsFromMidnight(shift.end_time);
+    if(shEnd <= sStart || shStart >= sEnd) return null; // no overlap
+    return { user: u, shift, score: fairnessScore(u.id) };
+  }).filter(Boolean).sort((a,b) => a.score - b.score);
+  if(!candidates.length){
+    c.innerHTML = '<p class="muted" style="font-size:.8rem">No workers scheduled during this time window today.</p>';
+    return;
+  }
+  const header = document.createElement('div');
+  header.style.cssText = 'font-weight:700;font-size:.82rem;margin-bottom:.5rem;color:var(--pink-dark)';
+  header.textContent = '⚖️ Suggested workers (lowest fairness score = most behind)';
+  c.appendChild(header);
+  candidates.forEach((cand,i) => {
+    const row = document.createElement('div');
+    row.className = `suggest-row${i===0?' best':''}`;
+    row.appendChild(avatarEl(cand.user,'avatar-sm'));
+    const info = document.createElement('div');info.style.flex='1';
+    info.innerHTML = `<div style="font-weight:700;font-size:.84rem">${cand.user.name}${i===0?' 👈 Most behind':''}</div><div style="font-size:.74rem;color:var(--muted)">${fmtTime(cand.shift.start_time)}–${fmtTime(cand.shift.end_time)} today</div>`;
+    row.appendChild(info);
+    const score = document.createElement('div');score.className='suggest-score';
+    score.innerHTML = `<div style="font-weight:700">${fmtPts(cand.score)} pts/hr</div><div>${cand.user.points} pts total</div>`;
+    row.appendChild(score);
+    // Clicking picks this worker in the assign dropdown
+    row.onclick = () => {
+      // Try admin form first, then staff
+      const tSel = $('t-assign-user'), tType = $('t-assign-type');
+      const st2Sel = $('st2-assign-user'), st2Type = $('st2-assign-type');
+      if(tType && tType.closest('.hidden')===null){
+        tType.value='specific_student';onAssignTypeChange();
+        if(tSel){tSel.value=cand.user.id;}
+      } else if(st2Type){
+        st2Type.value='specific_student';onStaff2AssignTypeChange();
+        if(st2Sel){st2Sel.value=cand.user.id;}
+      }
+      c.querySelectorAll('.suggest-row').forEach(r=>r.classList.remove('best','selected'));
+      row.classList.add('best');
+    };
+    c.appendChild(row);
+  });
+}
+
+// ── SCHEDULE TAB RENDER ──
+function renderScheduleTab(){
+  if(activeCampus !== 'SLO') return; // NCC untouched
+  renderScheduleGrid();
+  renderShiftList();
+  renderFairnessDashboard();
+  // Populate worker select in form
+  const sel = $('shift-worker');
+  if(sel){
+    sel.innerHTML = '<option value="">— Select worker —</option>';
+    campusUsers('student').filter(u=>u.campus==='SLO').forEach(u=>{
+      const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);
+    });
+  }
+}
+
+function renderScheduleGrid(){
+  const grid = $('schedule-grid'); if(!grid) return;
+  grid.innerHTML = '';
+  const g = document.createElement('div');g.className='sched-grid';
+  // Header row
+  const corner=document.createElement('div');corner.className='sched-grid-header';corner.textContent='';g.appendChild(corner);
+  SCHED_DAYS.forEach(d=>{const h=document.createElement('div');h.className='sched-grid-header';h.textContent=d;g.appendChild(h);});
+  // Time rows (hourly)
+  const totalHours = HOUR_END - HOUR_START;
+  const rowHeightPx = 28;
+  // Workers for color coding
+  const workers = campusUsers('student').filter(u=>u.campus==='SLO');
+  // Build grid rows
+  for(let h=HOUR_START;h<HOUR_END;h++){
+    const timeCell=document.createElement('div');timeCell.className='sched-time-col';
+    timeCell.textContent=fmtTime(`${String(h).padStart(2,'0')}:00`);g.appendChild(timeCell);
+    for(let d=0;d<7;d++){
+      const cell=document.createElement('div');cell.className='sched-cell';
+      cell.style.height=rowHeightPx+'px';
+      g.appendChild(cell);
+    }
+  }
+  // Overlay shift blocks
+  // For each recurring shift, position absolutely within the grid
+  // Grid is CSS grid so we need absolute positioning within each cell
+  // Simpler: render as colored blocks inside each day column using a separate overlay
+  grid.appendChild(g);
+  // Add shift blocks after grid is in DOM
+  setTimeout(()=>{
+    const cells = g.querySelectorAll('.sched-cell');
+    const today = new Date();
+    workers.forEach(u=>{
+      const color = u.avatar_color||'#F4A7B9';
+      // Recurring shifts
+      schedules.filter(s=>s.user_id===u.id&&!s.specific_date).forEach(s=>{
+        const dow=Number(s.day_of_week);
+        const colIdx=dow; // 0=Sun col
+        const rowStart=Math.max(0,timeToHours(s.start_time)-HOUR_START);
+        const rowEnd=Math.min(totalHours,timeToHours(s.end_time)-HOUR_START);
+        if(rowEnd<=rowStart) return;
+        // Find cells for this day column
+        const dayCells=[...cells].filter((_,i)=>i%7===colIdx);
+        const startRowIdx=Math.floor(rowStart);
+        const endRowIdx=Math.ceil(rowEnd);
+        if(!dayCells[startRowIdx]) return;
+        const block=document.createElement('div');block.className='sched-block';
+        block.style.background=color+'CC';block.style.color='#333';
+        block.style.top='2px';
+        block.style.height=(rowHeightPx*(rowEnd-rowStart)-4)+'px';
+        block.textContent=u.name.split(' ')[0];
+        block.title=`${u.name}: ${fmtTime(s.start_time)}–${fmtTime(s.end_time)}`;
+        block.onclick=()=>openShiftEdit(s);
+        dayCells[startRowIdx].appendChild(block);
+      });
+    });
+  },50);
+}
+
+function renderShiftList(){
+  const list=$('schedule-shift-list');if(!list)return;list.innerHTML='';
+  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
+  const noMsg=$('no-shifts-msg');
+  if(!schedules.length){if(noMsg)noMsg.classList.remove('hidden');return;}
+  if(noMsg)noMsg.classList.add('hidden');
+  // Group by worker
+  workers.forEach(u=>{
+    const uShifts=schedules.filter(s=>s.user_id===u.id).sort((a,b)=>{
+      if(!a.specific_date&&!b.specific_date) return Number(a.day_of_week)-Number(b.day_of_week);
+      if(!a.specific_date) return -1;if(!b.specific_date) return 1;
+      return a.specific_date.localeCompare(b.specific_date);
+    });
+    if(!uShifts.length) return;
+    const header=document.createElement('div');header.style.cssText='font-weight:700;font-size:.82rem;color:var(--pink-dark);margin:.75rem 0 .35rem';
+    header.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.5rem">${avatarEl(u,'avatar-sm').outerHTML} ${u.name}</span>`;
+    // avatarEl returns element not string — redo
+    header.innerHTML='';
+    const av=avatarEl(u,'avatar-sm');header.appendChild(av);
+    const nm=document.createElement('span');nm.style.cssText='font-weight:700;font-size:.84rem;margin-left:.4rem';nm.textContent=u.name;header.appendChild(nm);
+    list.appendChild(header);
+    uShifts.forEach(s=>{
+      const row=document.createElement('div');
+      const isOff=s.is_day_off==='1'||s.is_day_off===1;
+      row.className=`shift-row${s.specific_date?' override':''}${isOff?' day-off':''}`;
+      const dot=document.createElement('div');dot.style.cssText=`width:10px;height:10px;border-radius:50%;background:${u.avatar_color||'#F4A7B9'};flex-shrink:0`;row.appendChild(dot);
+      const info=document.createElement('div');info.className='shift-row-info';
+      if(s.specific_date){
+        info.innerHTML=`<div class="shift-row-name">${isOff?'🚫 Day off':'📅 Override'} — ${fmtDate(s.specific_date)}</div><div class="shift-row-time">${isOff?'Not working this day':`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}`}</div>`;
+      } else {
+        info.innerHTML=`<div class="shift-row-name">🔁 ${SCHED_DAYS_FULL[Number(s.day_of_week)]}</div><div class="shift-row-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>`;
+      }
+      row.appendChild(info);
+      const btns=document.createElement('div');btns.style.cssText='display:flex;gap:.35rem';
+      const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.onclick=()=>openShiftEdit(s);btns.appendChild(eb);
+      const db=document.createElement('button');db.className='btn btn-danger btn-xs';db.textContent='✕';db.onclick=()=>deleteShift(s.id);btns.appendChild(db);
+      row.appendChild(btns);list.appendChild(row);
+    });
+  });
+}
+
+function renderFairnessDashboard(){
+  const list=$('fairness-list');if(!list)return;list.innerHTML='';
+  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
+  if(!workers.length){list.innerHTML='<p class="muted" style="font-size:.8rem">No student workers yet.</p>';return;}
+  const scored=workers.map(u=>({u,score:fairnessScore(u.id),hrs:scheduledHoursSince(u.id)})).sort((a,b)=>a.score-b.score);
+  const maxScore=Math.max(...scored.map(s=>s.score),0.01);
+  scored.forEach(({u,score,hrs},i)=>{
+    const row=document.createElement('div');row.className='fairness-row';
+    row.appendChild(avatarEl(u,'avatar-sm'));
+    const info=document.createElement('div');info.style.flex='1';info.style.minWidth='0';
+    info.innerHTML=`<div style="font-weight:600;font-size:.82rem">${u.name}</div><div style="font-size:.72rem;color:var(--muted)">${u.points}pts · ${Math.round(hrs*10)/10}hrs sched</div>`;
+    row.appendChild(info);
+    const barWrap=document.createElement('div');barWrap.className='fairness-bar-wrap';barWrap.style.width='80px';
+    const bar=document.createElement('div');bar.className='fairness-bar';
+    bar.style.width=(maxScore>0?(score/maxScore)*100:0)+'%';
+    bar.style.background=i===0?'#E8526E':u.avatar_color||'#F4A7B9';
+    barWrap.appendChild(bar);row.appendChild(barWrap);
+    const scoreEl=document.createElement('div');scoreEl.style.cssText='font-size:.78rem;font-weight:700;width:52px;text-align:right';
+    scoreEl.textContent=fmtPts(score)+' p/h';row.appendChild(scoreEl);
+    list.appendChild(row);
+  });
+}
+
+// ── SHIFT FORM ──
+function onShiftTypeChange(){
+  const v=$('shift-type').value;
+  $('shift-day-field').classList.toggle('hidden',v==='override');
+  $('shift-date-field').classList.toggle('hidden',v==='recurring');
+  $('shift-off').closest('.field').style.display=v==='override'?'':'none';
+}
+
+function openShiftEdit(shift){
+  editingShiftId=shift.id;
+  $('shift-form-title').textContent='Edit Shift';
+  $('shift-worker').value=shift.user_id;
+  if(shift.specific_date){
+    $('shift-type').value='override';$('shift-date').value=shift.specific_date;
+  } else {
+    $('shift-type').value='recurring';$('shift-day').value=shift.day_of_week;
+  }
+  $('shift-start').value=shift.start_time||'';
+  $('shift-end').value=shift.end_time||'';
+  $('shift-off').checked=shift.is_day_off==='1'||shift.is_day_off===1;
+  $('shift-cancel-btn').style.display='';
+  onShiftTypeChange();
+  // Scroll form into view
+  $('shift-form-title').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function cancelShiftEdit(){
+  editingShiftId=null;$('shift-form-title').textContent='Add Shift';
+  $('shift-cancel-btn').style.display='none';
+  $('shift-worker').value='';$('shift-start').value='';$('shift-end').value='';
+  $('shift-type').value='recurring';$('shift-day').value='1';$('shift-date').value='';$('shift-off').checked=false;
+  onShiftTypeChange();
+}
+
+async function saveShift(){
+  const userId=$('shift-worker').value;if(!userId)return alert('Please select a worker.');
+  const type=$('shift-type').value;
+  const isOff=$('shift-off').checked;
+  const start=$('shift-start').value,end=$('shift-end').value;
+  if(!isOff&&(!start||!end))return alert('Please enter start and end times.');
+  if(!isOff&&timeToHours(end)<=timeToHours(start))return alert('End time must be after start time.');
+  const specificDate=type==='override'?($('shift-date').value||null):null;
+  const dayOfWeek=type==='recurring'?Number($('shift-day').value):null;
+  if(type==='override'&&!specificDate)return alert('Please select a specific date.');
+  setSyncing(true);
+  try{
+    if(editingShiftId){
+      await tursoFetch('UPDATE schedules SET user_id=?,day_of_week=?,start_time=?,end_time=?,specific_date=?,is_day_off=? WHERE id=?',
+        [userId,dayOfWeek,isOff?null:start,isOff?null:end,specificDate,isOff?1:0,editingShiftId]);
+    } else {
+      await tursoFetch('INSERT INTO schedules(id,user_id,campus,day_of_week,start_time,end_time,specific_date,is_day_off) VALUES(?,?,?,?,?,?,?,?)',
+        [uuid(),userId,'SLO',dayOfWeek,isOff?null:start,isOff?null:end,specificDate,isOff?1:0]);
+    }
+    cancelShiftEdit();await loadData();renderScheduleTab();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+async function deleteShift(id){
+  if(!confirm('Delete this shift?'))return;setSyncing(true);
+  try{await tursoFetch('DELETE FROM schedules WHERE id=?',[id]);await loadData();renderScheduleTab();}
+  catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+// ── SUGGESTION HOOKS INTO TASK FORMS ──
+// Called from slot time changes in task creation forms
+function onTaskTimeChange(startId,endId,containerId){
+  const start=$(startId)?.value, end=$(endId)?.value;
+  if(activeCampus==='SLO') buildSuggestionPanel(start,end,containerId);
+}
+
 async function loadData() {
   setSyncing(true);
   try {
@@ -1352,6 +1822,7 @@ async function loadData() {
       {sql:`CREATE TABLE IF NOT EXISTS notification_reads (id TEXT PRIMARY KEY,notification_id TEXT NOT NULL,user_id TEXT NOT NULL,read_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(notification_id,user_id))`},
       {sql:`CREATE TABLE IF NOT EXISTS semester_resets (id TEXT PRIMARY KEY,reset_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester_label TEXT NOT NULL,reset_by TEXT,campus TEXT NOT NULL DEFAULT 'SLO')`},
       {sql:`CREATE TABLE IF NOT EXISTS daily_messages (id TEXT PRIMARY KEY,campus TEXT NOT NULL DEFAULT 'SLO',show_date TEXT NOT NULL,title TEXT,body TEXT NOT NULL,icon TEXT NOT NULL DEFAULT '📢',created_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(campus,show_date))`},
+      {sql:`CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',day_of_week INTEGER,start_time TEXT,end_time TEXT,specific_date TEXT,is_day_off INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
       {sql:`INSERT OR IGNORE INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color) VALUES('admin-slo','SLO Admin','admin','Cougar007@',0,'admin','SLO','#F4A7B9'),('admin-ncc','NCC Admin','admin','Cougar007@',0,'admin','NCC','#D4B8E0')`},
     ]);
     // ── Migrations: silently add columns missing in older databases ──
@@ -1377,6 +1848,7 @@ async function loadData() {
     ];
     await Promise.allSettled(migrations.map(sql=>tursoFetch(sql)));
     // ────────────────────────────────────────────────────────────
+    await loadSchedules();
     const [u,t,c,n,nr,pa,bp,hr,dm]=await Promise.all([
       tursoFetch('SELECT * FROM users ORDER BY role,name'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
@@ -1460,6 +1932,9 @@ function renderAll(){
   updateNotifBadges();
   if(currentUser.role==='admin'){
     renderUserLists();renderAdminHero();renderAdminMyTasks();renderAdminTeamTasks();
+    // Hide schedule tab on NCC
+    const schedTab=$('admin-schedule-tab');
+    if(schedTab) schedTab.style.display=activeCampus==='SLO'?'':'none';
     renderAdminLb();renderAdminMessages();
     renderPitchBanner('admin');renderHelpBanner('admin');renderAllPitches();populateAssignSelects();
   } else if(currentUser.role==='staff'){
@@ -2405,9 +2880,23 @@ function renderSlotList(containerId,slotsArr,prefix){
     const box=document.createElement('div');box.className='slot-box';
     box.innerHTML=`<div class="slot-box-header"><span class="slot-box-label">${slot.label||`Slot ${i+1}`}</span><button type="button" class="btn btn-danger btn-xs" onclick="${prefix==='new'?'removeSlot':prefix==='edit'?'removeEditSlot':prefix==='st'?'removeStSlot':'removeSt2Slot'}(${i})">✕</button></div>`;
     const row1=document.createElement('div');row1.style.cssText='display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem';
-    const s=document.createElement('input');s.type='time';s.className='input';s.style.flex='1';s.value=slot.start;s.onchange=e=>{slotsArr[i].start=e.target.value;};
+    const s=document.createElement('input');s.type='time';s.className='input';s.style.flex='1';s.value=slot.start;
+    s.onchange=e=>{
+      slotsArr[i].start=e.target.value;
+      if(activeCampus==='SLO'&&slotsArr[i].end){
+        const pid=containerId==='slot-list'?'t-suggest-panel':containerId==='st2-slot-list'?'st2-suggest-panel':null;
+        if(pid){const p=$(pid);if(p){p.style.display='';buildSuggestionPanel(e.target.value,slotsArr[i].end,pid);}}
+      }
+    };
     const sp=document.createElement('span');sp.style.cssText='color:var(--muted);font-size:.82rem;flex-shrink:0';sp.textContent='to';
-    const e=document.createElement('input');e.type='time';e.className='input';e.style.flex='1';e.value=slot.end;e.onchange=ev=>{slotsArr[i].end=ev.target.value;};
+    const e=document.createElement('input');e.type='time';e.className='input';e.style.flex='1';e.value=slot.end;
+    e.onchange=ev=>{
+      slotsArr[i].end=ev.target.value;
+      if(activeCampus==='SLO'&&slotsArr[i].start){
+        const pid=containerId==='slot-list'?'t-suggest-panel':containerId==='st2-slot-list'?'st2-suggest-panel':null;
+        if(pid){const p=$(pid);if(p){p.style.display='';buildSuggestionPanel(slotsArr[i].start,ev.target.value,pid);}}
+      }
+    };
     row1.appendChild(s);row1.appendChild(sp);row1.appendChild(e);box.appendChild(row1);
     const lbl=document.createElement('input');lbl.className='input';lbl.placeholder='Label (e.g. Morning)';lbl.value=slot.label||'';lbl.style.marginBottom='.4rem';lbl.onchange=ev=>{slotsArr[i].label=ev.target.value;};box.appendChild(lbl);
     const asel=document.createElement('select');asel.className='input';asel.innerHTML='<option value="everyone">📢 Everyone</option><option value="specific">👤 Specific</option>';

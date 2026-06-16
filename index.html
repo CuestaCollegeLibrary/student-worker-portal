@@ -757,6 +757,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <button class="tab active" onclick="staffTab('mytasks')">📋 My Tasks</button>
         <button class="tab" onclick="staffTab('teamtasks')">🗂️ Team Tasks</button>
         <button class="tab" onclick="staffTab('team')">👥 Team</button>
+        <button class="tab" id="staff-schedule-tab" onclick="staffTab('schedule')">📅 Schedule</button>
         <button class="tab" onclick="staffTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="staffTab('messages')">💌 Messages</button>
         <button class="tab" id="staff-notif-tab" onclick="staffTab('notifications')">🔔 Notifications</button>
@@ -941,6 +942,68 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <h2 class="section-title">Notifications</h2>
         <div id="staff-notif-list" style="display:flex;flex-direction:column;gap:.65rem"></div>
         <p class="muted hidden" id="no-staff-notifs" style="font-size:.88rem">No notifications.</p>
+      </div>
+
+      <!-- STAFF SCHEDULE TAB (SLO only) -->
+      <div id="staff-schedule" class="hidden">
+        <div class="two-col">
+          <div>
+            <h2 class="section-title">Weekly Schedule — <span style="color:var(--campus)">SLO Campus</span></h2>
+            <p class="muted" style="font-size:.84rem;margin-bottom:1.25rem">Base schedule repeats every week. Add date-specific overrides for sick days, swaps, or makeup shifts.</p>
+            <div id="staff-schedule-grid" style="overflow-x:auto;margin-bottom:1.5rem"></div>
+            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem">All Shifts</h3>
+            <div id="staff-shift-list" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            <p class="muted hidden" id="no-staff-shifts-msg" style="font-size:.88rem;margin-top:.5rem">No shifts scheduled yet.</p>
+          </div>
+          <div class="sticky-panel">
+            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
+              <h3 id="staff-shift-form-title">Add Shift</h3>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Worker</label>
+                  <select class="input" id="staff-shift-worker"><option value="">— Select —</option></select>
+                </div>
+                <div class="field">
+                  <label>Type</label>
+                  <select class="input" id="staff-shift-type" onchange="onStaffShiftTypeChange()">
+                    <option value="recurring">🔁 Weekly recurring</option>
+                    <option value="override">📅 Specific date (override)</option>
+                  </select>
+                </div>
+                <div class="field" id="staff-shift-day-field">
+                  <label>Day of week</label>
+                  <select class="input" id="staff-shift-day">
+                    <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+                  </select>
+                </div>
+                <div class="field hidden" id="staff-shift-date-field">
+                  <label>Specific date</label>
+                  <input class="input" id="staff-shift-date" type="date"/>
+                </div>
+                <div class="form-row col2">
+                  <div class="field"><label>Start time</label><input class="input" id="staff-shift-start" type="time"/></div>
+                  <div class="field"><label>End time</label><input class="input" id="staff-shift-end" type="time"/></div>
+                </div>
+                <div class="field">
+                  <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+                    <input type="checkbox" id="staff-shift-off" style="accent-color:var(--pink);width:15px;height:15px"/>
+                    Mark as day off (override only)
+                  </label>
+                </div>
+                <div style="display:flex;gap:.5rem">
+                  <button class="btn btn-primary" style="flex:1" onclick="staffSaveShift()">Save Shift</button>
+                  <button class="btn btn-ghost" id="staff-shift-cancel-btn" style="display:none" onclick="cancelStaffShiftEdit()">Cancel</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-panel" style="margin-top:1rem">
+              <h3>⚖️ Fairness This Semester</h3>
+              <p class="muted" style="font-size:.78rem;margin-bottom:.75rem">Points earned ÷ scheduled hours</p>
+              <div id="staff-fairness-list" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            </div>
+          </div>
+        </div>
       </div>
  
     </div>
@@ -1418,11 +1481,12 @@ function adminTab(name){
   if(name==='schedule') renderScheduleTab();
 }
 function staffTab(name){
-  const tabs=['mytasks','teamtasks','team','leaderboard','messages','notifications'];
+  const tabs=['mytasks','teamtasks','team','schedule','leaderboard','messages','notifications'];
   tabs.forEach(t=>$(`staff-${t}`).classList.toggle('hidden',t!==name));
   $('staff-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='mytasks') renderStaffMyTasks();
   if(name==='teamtasks') renderStaffTeamTasks();
+  if(name==='schedule') renderStaffScheduleTab();
   if(name==='leaderboard') renderStaffLb();
   if(name==='notifications') renderStaffNotifications();
 }
@@ -1601,11 +1665,10 @@ function buildSuggestionPanel(startTime, endTime, containerId){
 
 // ── SCHEDULE TAB RENDER ──
 function renderScheduleTab(){
-  if(activeCampus !== 'SLO') return; // NCC untouched
-  renderScheduleGrid();
-  renderShiftList();
-  renderFairnessDashboard();
-  // Populate worker select in form
+  if(activeCampus !== 'SLO') return;
+  renderScheduleGridInto('schedule-grid');
+  renderShiftListInto('schedule-shift-list','no-shifts-msg');
+  renderFairnessDashboardInto('fairness-list');
   const sel = $('shift-worker');
   if(sel){
     sel.innerHTML = '<option value="">— Select worker —</option>';
@@ -1615,127 +1678,11 @@ function renderScheduleTab(){
   }
 }
 
-function renderScheduleGrid(){
-  const grid = $('schedule-grid'); if(!grid) return;
-  grid.innerHTML = '';
-  const g = document.createElement('div');g.className='sched-grid';
-  // Header row
-  const corner=document.createElement('div');corner.className='sched-grid-header';corner.textContent='';g.appendChild(corner);
-  SCHED_DAYS.forEach(d=>{const h=document.createElement('div');h.className='sched-grid-header';h.textContent=d;g.appendChild(h);});
-  // Time rows (hourly)
-  const totalHours = HOUR_END - HOUR_START;
-  const rowHeightPx = 28;
-  // Workers for color coding
-  const workers = campusUsers('student').filter(u=>u.campus==='SLO');
-  // Build grid rows
-  for(let h=HOUR_START;h<HOUR_END;h++){
-    const timeCell=document.createElement('div');timeCell.className='sched-time-col';
-    timeCell.textContent=fmtTime(`${String(h).padStart(2,'0')}:00`);g.appendChild(timeCell);
-    for(let d=0;d<7;d++){
-      const cell=document.createElement('div');cell.className='sched-cell';
-      cell.style.height=rowHeightPx+'px';
-      g.appendChild(cell);
-    }
-  }
-  // Overlay shift blocks
-  // For each recurring shift, position absolutely within the grid
-  // Grid is CSS grid so we need absolute positioning within each cell
-  // Simpler: render as colored blocks inside each day column using a separate overlay
-  grid.appendChild(g);
-  // Add shift blocks after grid is in DOM
-  setTimeout(()=>{
-    const cells = g.querySelectorAll('.sched-cell');
-    const today = new Date();
-    workers.forEach(u=>{
-      const color = u.avatar_color||'#F4A7B9';
-      // Recurring shifts
-      schedules.filter(s=>s.user_id===u.id&&!s.specific_date).forEach(s=>{
-        const dow=Number(s.day_of_week);
-        const colIdx=dow; // 0=Sun col
-        const rowStart=Math.max(0,timeToHours(s.start_time)-HOUR_START);
-        const rowEnd=Math.min(totalHours,timeToHours(s.end_time)-HOUR_START);
-        if(rowEnd<=rowStart) return;
-        // Find cells for this day column
-        const dayCells=[...cells].filter((_,i)=>i%7===colIdx);
-        const startRowIdx=Math.floor(rowStart);
-        const endRowIdx=Math.ceil(rowEnd);
-        if(!dayCells[startRowIdx]) return;
-        const block=document.createElement('div');block.className='sched-block';
-        block.style.background=color+'CC';block.style.color='#333';
-        block.style.top='2px';
-        block.style.height=(rowHeightPx*(rowEnd-rowStart)-4)+'px';
-        block.textContent=u.name.split(' ')[0];
-        block.title=`${u.name}: ${fmtTime(s.start_time)}–${fmtTime(s.end_time)}`;
-        block.onclick=()=>openShiftEdit(s);
-        dayCells[startRowIdx].appendChild(block);
-      });
-    });
-  },50);
-}
+// renderScheduleGrid replaced by renderScheduleGridInto()
 
-function renderShiftList(){
-  const list=$('schedule-shift-list');if(!list)return;list.innerHTML='';
-  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
-  const noMsg=$('no-shifts-msg');
-  if(!schedules.length){if(noMsg)noMsg.classList.remove('hidden');return;}
-  if(noMsg)noMsg.classList.add('hidden');
-  // Group by worker
-  workers.forEach(u=>{
-    const uShifts=schedules.filter(s=>s.user_id===u.id).sort((a,b)=>{
-      if(!a.specific_date&&!b.specific_date) return Number(a.day_of_week)-Number(b.day_of_week);
-      if(!a.specific_date) return -1;if(!b.specific_date) return 1;
-      return a.specific_date.localeCompare(b.specific_date);
-    });
-    if(!uShifts.length) return;
-    const header=document.createElement('div');header.style.cssText='font-weight:700;font-size:.82rem;color:var(--pink-dark);margin:.75rem 0 .35rem';
-    header.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.5rem">${avatarEl(u,'avatar-sm').outerHTML} ${u.name}</span>`;
-    // avatarEl returns element not string — redo
-    header.innerHTML='';
-    const av=avatarEl(u,'avatar-sm');header.appendChild(av);
-    const nm=document.createElement('span');nm.style.cssText='font-weight:700;font-size:.84rem;margin-left:.4rem';nm.textContent=u.name;header.appendChild(nm);
-    list.appendChild(header);
-    uShifts.forEach(s=>{
-      const row=document.createElement('div');
-      const isOff=s.is_day_off==='1'||s.is_day_off===1;
-      row.className=`shift-row${s.specific_date?' override':''}${isOff?' day-off':''}`;
-      const dot=document.createElement('div');dot.style.cssText=`width:10px;height:10px;border-radius:50%;background:${u.avatar_color||'#F4A7B9'};flex-shrink:0`;row.appendChild(dot);
-      const info=document.createElement('div');info.className='shift-row-info';
-      if(s.specific_date){
-        info.innerHTML=`<div class="shift-row-name">${isOff?'🚫 Day off':'📅 Override'} — ${fmtDate(s.specific_date)}</div><div class="shift-row-time">${isOff?'Not working this day':`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}`}</div>`;
-      } else {
-        info.innerHTML=`<div class="shift-row-name">🔁 ${SCHED_DAYS_FULL[Number(s.day_of_week)]}</div><div class="shift-row-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>`;
-      }
-      row.appendChild(info);
-      const btns=document.createElement('div');btns.style.cssText='display:flex;gap:.35rem';
-      const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.onclick=()=>openShiftEdit(s);btns.appendChild(eb);
-      const db=document.createElement('button');db.className='btn btn-danger btn-xs';db.textContent='✕';db.onclick=()=>deleteShift(s.id);btns.appendChild(db);
-      row.appendChild(btns);list.appendChild(row);
-    });
-  });
-}
+// renderShiftList replaced by renderShiftListInto()
 
-function renderFairnessDashboard(){
-  const list=$('fairness-list');if(!list)return;list.innerHTML='';
-  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
-  if(!workers.length){list.innerHTML='<p class="muted" style="font-size:.8rem">No student workers yet.</p>';return;}
-  const scored=workers.map(u=>({u,score:fairnessScore(u.id),hrs:scheduledHoursSince(u.id)})).sort((a,b)=>a.score-b.score);
-  const maxScore=Math.max(...scored.map(s=>s.score),0.01);
-  scored.forEach(({u,score,hrs},i)=>{
-    const row=document.createElement('div');row.className='fairness-row';
-    row.appendChild(avatarEl(u,'avatar-sm'));
-    const info=document.createElement('div');info.style.flex='1';info.style.minWidth='0';
-    info.innerHTML=`<div style="font-weight:600;font-size:.82rem">${u.name}</div><div style="font-size:.72rem;color:var(--muted)">${u.points}pts · ${Math.round(hrs*10)/10}hrs sched</div>`;
-    row.appendChild(info);
-    const barWrap=document.createElement('div');barWrap.className='fairness-bar-wrap';barWrap.style.width='80px';
-    const bar=document.createElement('div');bar.className='fairness-bar';
-    bar.style.width=(maxScore>0?(score/maxScore)*100:0)+'%';
-    bar.style.background=i===0?'#E8526E':u.avatar_color||'#F4A7B9';
-    barWrap.appendChild(bar);row.appendChild(barWrap);
-    const scoreEl=document.createElement('div');scoreEl.style.cssText='font-size:.78rem;font-weight:700;width:52px;text-align:right';
-    scoreEl.textContent=fmtPts(score)+' p/h';row.appendChild(scoreEl);
-    list.appendChild(row);
-  });
-}
+// renderFairnessDashboard replaced by renderFairnessDashboardInto()
 
 // ── SHIFT FORM ──
 function onShiftTypeChange(){
@@ -1798,6 +1745,178 @@ async function deleteShift(id){
   if(!confirm('Delete this shift?'))return;setSyncing(true);
   try{await tursoFetch('DELETE FROM schedules WHERE id=?',[id]);await loadData();renderScheduleTab();}
   catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+// ── STAFF SCHEDULE FUNCTIONS (mirror admin, use staff- IDs) ──
+let editingStaffShiftId=null;
+
+function renderStaffScheduleTab(){
+  if(activeCampus!=='SLO') return;
+  // Reuse grid and list renders but into staff-prefixed containers
+  renderScheduleGridInto('staff-schedule-grid');
+  renderShiftListInto('staff-shift-list','no-staff-shifts-msg');
+  renderFairnessDashboardInto('staff-fairness-list');
+  const sel=$('staff-shift-worker');
+  if(sel){
+    sel.innerHTML='<option value="">— Select worker —</option>';
+    campusUsers('student').filter(u=>u.campus==='SLO').forEach(u=>{
+      const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);
+    });
+  }
+}
+
+function onStaffShiftTypeChange(){
+  const v=$('staff-shift-type').value;
+  $('staff-shift-day-field').classList.toggle('hidden',v==='override');
+  $('staff-shift-date-field').classList.toggle('hidden',v==='recurring');
+  $('staff-shift-off').closest('.field').style.display=v==='override'?'':'none';
+}
+
+function openStaffShiftEdit(shift){
+  editingStaffShiftId=shift.id;
+  $('staff-shift-form-title').textContent='Edit Shift';
+  $('staff-shift-worker').value=shift.user_id;
+  if(shift.specific_date){$('staff-shift-type').value='override';$('staff-shift-date').value=shift.specific_date;}
+  else{$('staff-shift-type').value='recurring';$('staff-shift-day').value=shift.day_of_week;}
+  $('staff-shift-start').value=shift.start_time||'';
+  $('staff-shift-end').value=shift.end_time||'';
+  $('staff-shift-off').checked=shift.is_day_off==='1'||shift.is_day_off===1;
+  $('staff-shift-cancel-btn').style.display='';
+  onStaffShiftTypeChange();
+  $('staff-shift-form-title').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function cancelStaffShiftEdit(){
+  editingStaffShiftId=null;
+  $('staff-shift-form-title').textContent='Add Shift';
+  $('staff-shift-cancel-btn').style.display='none';
+  $('staff-shift-worker').value='';$('staff-shift-start').value='';$('staff-shift-end').value='';
+  $('staff-shift-type').value='recurring';$('staff-shift-day').value='1';$('staff-shift-date').value='';$('staff-shift-off').checked=false;
+  onStaffShiftTypeChange();
+}
+
+async function staffSaveShift(){
+  const userId=$('staff-shift-worker').value;if(!userId)return alert('Please select a worker.');
+  const type=$('staff-shift-type').value;
+  const isOff=$('staff-shift-off').checked;
+  const start=$('staff-shift-start').value,end=$('staff-shift-end').value;
+  if(!isOff&&(!start||!end))return alert('Please enter start and end times.');
+  if(!isOff&&timeToHours(end)<=timeToHours(start))return alert('End time must be after start time.');
+  const specificDate=type==='override'?($('staff-shift-date').value||null):null;
+  const dayOfWeek=type==='recurring'?Number($('staff-shift-day').value):null;
+  if(type==='override'&&!specificDate)return alert('Please select a specific date.');
+  setSyncing(true);
+  try{
+    if(editingStaffShiftId){
+      await tursoFetch('UPDATE schedules SET user_id=?,day_of_week=?,start_time=?,end_time=?,specific_date=?,is_day_off=? WHERE id=?',
+        [userId,dayOfWeek,isOff?null:start,isOff?null:end,specificDate,isOff?1:0,editingStaffShiftId]);
+    } else {
+      await tursoFetch('INSERT INTO schedules(id,user_id,campus,day_of_week,start_time,end_time,specific_date,is_day_off) VALUES(?,?,?,?,?,?,?,?)',
+        [uuid(),userId,'SLO',dayOfWeek,isOff?null:start,isOff?null:end,specificDate,isOff?1:0]);
+    }
+    cancelStaffShiftEdit();await loadData();renderStaffScheduleTab();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+// Generalized render helpers so admin and staff reuse same logic
+function renderScheduleGridInto(containerId){
+  const grid=$(containerId);if(!grid)return;grid.innerHTML='';
+  const g=document.createElement('div');g.className='sched-grid';
+  const corner=document.createElement('div');corner.className='sched-grid-header';corner.textContent='';g.appendChild(corner);
+  SCHED_DAYS.forEach(d=>{const h=document.createElement('div');h.className='sched-grid-header';h.textContent=d;g.appendChild(h);});
+  const totalHours=HOUR_END-HOUR_START,rowHeightPx=28;
+  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
+  for(let h=HOUR_START;h<HOUR_END;h++){
+    const timeCell=document.createElement('div');timeCell.className='sched-time-col';
+    timeCell.textContent=fmtTime(`${String(h).padStart(2,'0')}:00`);g.appendChild(timeCell);
+    for(let d=0;d<7;d++){const cell=document.createElement('div');cell.className='sched-cell';cell.style.height=rowHeightPx+'px';g.appendChild(cell);}
+  }
+  grid.appendChild(g);
+  setTimeout(()=>{
+    const cells=g.querySelectorAll('.sched-cell');
+    const isStaff=containerId==='staff-schedule-grid';
+    workers.forEach(u=>{
+      const color=u.avatar_color||'#F4A7B9';
+      schedules.filter(s=>s.user_id===u.id&&!s.specific_date).forEach(s=>{
+        const dow=Number(s.day_of_week);
+        const rowStart=Math.max(0,timeToHours(s.start_time)-HOUR_START);
+        const rowEnd=Math.min(totalHours,timeToHours(s.end_time)-HOUR_START);
+        if(rowEnd<=rowStart)return;
+        const dayCells=[...cells].filter((_,i)=>i%7===dow);
+        if(!dayCells[Math.floor(rowStart)])return;
+        const block=document.createElement('div');block.className='sched-block';
+        block.style.background=color+'CC';block.style.color='#333';
+        block.style.top='2px';block.style.height=(rowHeightPx*(rowEnd-rowStart)-4)+'px';
+        block.textContent=u.name.split(' ')[0];
+        block.title=`${u.name}: ${fmtTime(s.start_time)}–${fmtTime(s.end_time)}`;
+        block.onclick=()=>isStaff?openStaffShiftEdit(s):openShiftEdit(s);
+        dayCells[Math.floor(rowStart)].appendChild(block);
+      });
+    });
+  },50);
+}
+
+function renderShiftListInto(listId,noMsgId){
+  const list=$(listId);if(!list)return;list.innerHTML='';
+  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
+  const noMsg=$(noMsgId);
+  if(!schedules.length){if(noMsg)noMsg.classList.remove('hidden');return;}
+  if(noMsg)noMsg.classList.add('hidden');
+  const isStaff=listId==='staff-shift-list';
+  workers.forEach(u=>{
+    const uShifts=schedules.filter(s=>s.user_id===u.id).sort((a,b)=>{
+      if(!a.specific_date&&!b.specific_date)return Number(a.day_of_week)-Number(b.day_of_week);
+      if(!a.specific_date)return -1;if(!b.specific_date)return 1;
+      return a.specific_date.localeCompare(b.specific_date);
+    });
+    if(!uShifts.length)return;
+    const header=document.createElement('div');header.style.cssText='display:flex;align-items:center;gap:.4rem;font-weight:700;font-size:.84rem;margin:.75rem 0 .35rem';
+    header.appendChild(avatarEl(u,'avatar-sm'));
+    const nm=document.createElement('span');nm.textContent=u.name;header.appendChild(nm);
+    list.appendChild(header);
+    uShifts.forEach(s=>{
+      const isOff=s.is_day_off==='1'||s.is_day_off===1;
+      const row=document.createElement('div');row.className=`shift-row${s.specific_date?' override':''}${isOff?' day-off':''}`;
+      const dot=document.createElement('div');dot.style.cssText=`width:10px;height:10px;border-radius:50%;background:${u.avatar_color||'#F4A7B9'};flex-shrink:0`;row.appendChild(dot);
+      const info=document.createElement('div');info.className='shift-row-info';
+      if(s.specific_date){
+        info.innerHTML=`<div class="shift-row-name">${isOff?'🚫 Day off':'📅 Override'} — ${fmtDate(s.specific_date)}</div><div class="shift-row-time">${isOff?'Not working':'${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}'}</div>`;
+        info.querySelector('.shift-row-time').textContent=isOff?'Not working this day':`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}`;
+      } else {
+        info.innerHTML=`<div class="shift-row-name">🔁 ${SCHED_DAYS_FULL[Number(s.day_of_week)]}</div><div class="shift-row-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>`;
+      }
+      row.appendChild(info);
+      const btns=document.createElement('div');btns.style.cssText='display:flex;gap:.35rem';
+      const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';
+      eb.onclick=()=>isStaff?openStaffShiftEdit(s):openShiftEdit(s);btns.appendChild(eb);
+      const db=document.createElement('button');db.className='btn btn-danger btn-xs';db.textContent='✕';
+      db.onclick=()=>deleteShift(s.id);btns.appendChild(db);
+      row.appendChild(btns);list.appendChild(row);
+    });
+  });
+}
+
+function renderFairnessDashboardInto(containerId){
+  const list=$(containerId);if(!list)return;list.innerHTML='';
+  const workers=campusUsers('student').filter(u=>u.campus==='SLO');
+  if(!workers.length){list.innerHTML='<p class="muted" style="font-size:.8rem">No student workers yet.</p>';return;}
+  const scored=workers.map(u=>({u,score:fairnessScore(u.id),hrs:scheduledHoursSince(u.id)})).sort((a,b)=>a.score-b.score);
+  const maxScore=Math.max(...scored.map(s=>s.score),0.01);
+  scored.forEach(({u,score,hrs},i)=>{
+    const row=document.createElement('div');row.className='fairness-row';
+    row.appendChild(avatarEl(u,'avatar-sm'));
+    const info=document.createElement('div');info.style.flex='1';info.style.minWidth='0';
+    info.innerHTML=`<div style="font-weight:600;font-size:.82rem">${u.name}</div><div style="font-size:.72rem;color:var(--muted)">${u.points}pts · ${Math.round(hrs*10)/10}hrs sched</div>`;
+    row.appendChild(info);
+    const barWrap=document.createElement('div');barWrap.className='fairness-bar-wrap';barWrap.style.width='80px';
+    const bar=document.createElement('div');bar.className='fairness-bar';
+    bar.style.width=(maxScore>0?(score/maxScore)*100:0)+'%';
+    bar.style.background=i===0?'#E8526E':u.avatar_color||'#F4A7B9';
+    barWrap.appendChild(bar);row.appendChild(barWrap);
+    const scoreEl=document.createElement('div');scoreEl.style.cssText='font-size:.78rem;font-weight:700;width:52px;text-align:right';
+    scoreEl.textContent=fmtPts(score)+' p/h';row.appendChild(scoreEl);
+    list.appendChild(row);
+  });
 }
 
 // ── SUGGESTION HOOKS INTO TASK FORMS ──
@@ -1940,6 +2059,9 @@ function renderAll(){
   } else if(currentUser.role==='staff'){
     renderUserLists();renderStaffHero();renderStaffMyTasks();renderStaffTeamTasks();
     renderStaffLb();renderStaffMessages();renderPitchBanner('staff');renderHelpBanner('staff');populateAssignSelects();
+    // Hide schedule tab on NCC for staff too
+    const staffSchedTab=$('staff-schedule-tab');
+    if(staffSchedTab) staffSchedTab.style.display=activeCampus==='SLO'?'':'none';
   } else {
     renderStudentHero();renderStudentTasks();renderStudentHistory();renderStudentLb();renderStudentPitches();
   }

@@ -1150,6 +1150,8 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <label>Max completions per day</label>
         <input class="input" id="edit-collab-required" type="number" min="2" max="20" value="2"/>
       </div>
+      <!-- Fairness suggestion panel — SLO only -->
+      <div id="edit-suggest-panel" class="suggest-panel" style="display:none"></div>
       <!-- Points / Priority -->
       <div class="form-row col2" id="edit-pts-row">
         <div class="field"><label>Points</label><input class="input" id="edit-pts" type="number" min="0" max="500"/></div>
@@ -3211,11 +3213,21 @@ async function deleteTask(id){
 // ══════════════════════════════════════════════════════════════
 function onEditAssignTypeChange(){
   const v=$('edit-assign-type').value;
-  const isStudent=v==='specific'||v==='collaborative'||v==='collab_specific'||v==='everyone';
   const isCollab=v==='collaborative'||v==='collab_specific';
   $('edit-specific-user-field').classList.toggle('hidden',v!=='specific');
   $('edit-collab-specific-field').classList.toggle('hidden',v!=='collab_specific');
   $('edit-collab-limit-field').classList.toggle('hidden',!isCollab);
+  // Show fairness panel for SLO student-facing tasks
+  const panel=$('edit-suggest-panel');
+  if(panel){
+    const isStudent=v==='specific'||v==='everyone'||v==='collaborative'||v==='collab_specific';
+    if(activeCampus==='SLO'&&isStudent){
+      panel.style.display='';
+      buildFairnessSuggestionPanel('edit-suggest-panel','edit-assign-user','edit-assign-type');
+    } else {
+      panel.style.display='none';panel.innerHTML='';
+    }
+  }
 }
 
 function openEditModal(task){
@@ -3253,6 +3265,7 @@ function openEditModal(task){
   $('edit-rec-interval-val').value=task.recurrence_interval??7;
   $('edit-one-per-worker').checked=!!task.one_per_worker_day;
   onEditRecurrenceChange();
+  onEditAssignTypeChange();
   editTaskSlots=parsedSlots(task);
   renderSlotList('edit-slot-list',editTaskSlots,'edit');
   $('edit-modal').classList.add('show');

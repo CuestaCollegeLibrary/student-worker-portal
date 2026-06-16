@@ -1516,7 +1516,15 @@ const HOUR_START = 7, HOUR_END = 21; // display 7am–9pm
 
 // ── DB LOAD (called inside loadData) ──
 async function loadSchedules(){
-  schedules = await tursoFetch('SELECT * FROM schedules WHERE campus=? ORDER BY day_of_week,start_time',['SLO']);
+  const raw = await tursoFetch('SELECT * FROM schedules WHERE campus=? ORDER BY day_of_week,start_time',['SLO']);
+  schedules = raw.map(s=>({
+    ...s,
+    day_of_week: s.day_of_week!=null ? Number(s.day_of_week) : null,
+    is_day_off: s.is_day_off==='1'||s.is_day_off===1||s.is_day_off===true,
+    specific_date: s.specific_date||null,
+    start_time: s.start_time||null,
+    end_time: s.end_time||null,
+  }));
 }
 
 // ── FAIRNESS SCORE ──
@@ -1526,31 +1534,36 @@ function scheduledHoursSince(userId, sinceDate){
   if(!user) return 0;
   const since = new Date(sinceDate || user.created_at || '2024-01-01');
   const now = new Date();
-  // Count recurring shifts
-  let totalHrs = 0;
-  const recurringShifts = schedules.filter(s => s.user_id === userId && !s.specific_date && !s.is_day_off);
-  // Walk week by week from since to now
   const msPerWeek = 7 * 24 * 3600 * 1000;
-  const weekCount = Math.max(1, Math.ceil((now - since) / msPerWeek));
+  const weekCount = Math.max(1, (now - since) / msPerWeek);
+
+  const userSchedules = schedules.filter(s => s.user_id === userId);
+
+  // If no schedule records at all, fall back to weekly_hours × weeks
+  if(!userSchedules.length){
+    return Math.max(0, (Number(user.weekly_hours) || 0) * weekCount);
+  }
+
+  // Count recurring shifts × weeks
+  let totalHrs = 0;
+  const recurringShifts = userSchedules.filter(s => !s.specific_date && !s.is_day_off);
   recurringShifts.forEach(s => {
     const hrs = timeToHours(s.end_time) - timeToHours(s.start_time);
-    totalHrs += hrs * weekCount;
+    if(hrs > 0) totalHrs += hrs * weekCount;
   });
-  // Add specific date overrides (additions)
-  schedules.filter(s => s.user_id === userId && s.specific_date && !s.is_day_off).forEach(s => {
+  // Add specific date overrides (extra shifts)
+  userSchedules.filter(s => s.specific_date && !s.is_day_off).forEach(s => {
     const d = new Date(s.specific_date);
     if(d >= since && d <= now){
-      // Check if this overrides a recurring shift or is extra
-      totalHrs += timeToHours(s.end_time) - timeToHours(s.start_time);
+      const hrs = timeToHours(s.end_time) - timeToHours(s.start_time);
+      if(hrs > 0) totalHrs += hrs;
     }
   });
   // Subtract day-offs
-  schedules.filter(s => s.user_id === userId && s.specific_date && (s.is_day_off==='1'||s.is_day_off===1)).forEach(s => {
+  userSchedules.filter(s => s.specific_date && s.is_day_off).forEach(s => {
     const d = new Date(s.specific_date);
     if(d >= since && d <= now){
-      // Find the recurring shift for that day and subtract it
-      const dow = d.getDay();
-      const rec = schedules.find(r => r.user_id === userId && !r.specific_date && Number(r.day_of_week) === dow);
+      const rec = userSchedules.find(r => !r.specific_date && r.day_of_week === d.getDay());
       if(rec) totalHrs -= timeToHours(rec.end_time) - timeToHours(rec.start_time);
     }
   });
@@ -1612,13 +1625,13 @@ function workersScheduledOn(date){
   const sloStudents = campusUsers('student').filter(u => u.campus === 'SLO');
   return sloStudents.filter(u => {
     // Check for day-off override
-    const dayOff = schedules.find(s => s.user_id === u.id && s.specific_date === dateStr && (s.is_day_off==='1'||s.is_day_off===1));
+    const dayOff = schedules.find(s => s.user_id === u.id && s.specific_date === dateStr && s.is_day_off);
     if(dayOff) return false;
     // Check for specific date override
     const override = schedules.find(s => s.user_id === u.id && s.specific_date === dateStr && !s.is_day_off);
     if(override) return true;
     // Check recurring
-    return schedules.some(s => s.user_id === u.id && !s.specific_date && Number(s.day_of_week) === dow);
+    return schedules.some(s => s.user_id === u.id && !s.specific_date && s.day_of_week === dow);
   });
 }
 
@@ -1629,7 +1642,7 @@ function workerShiftOn(userId, date){
   const dateStr = date.toISOString().slice(0,10);
   const override = schedules.find(s => s.user_id === userId && s.specific_date === dateStr && !s.is_day_off);
   if(override) return override;
-  return schedules.find(s => s.user_id === userId && !s.specific_date && Number(s.day_of_week) === dow) || null;
+  return schedules.find(s => s.user_id === userId && !s.specific_date && s.day_of_week === dow) || null;
 }
 
 // ── AUTO-ASSIGN LOGIC FOR ALL-DAY TASKS ──
@@ -1888,7 +1901,7 @@ function renderScheduleGridInto(containerId){
     workers.forEach(u=>{
       const color=u.avatar_color||'#F4A7B9';
       schedules.filter(s=>s.user_id===u.id&&!s.specific_date).forEach(s=>{
-        const dow=Number(s.day_of_week);
+        const dow=s.day_of_week;
         const rowStart=Math.max(0,timeToHours(s.start_time)-HOUR_START);
         const rowEnd=Math.min(totalHours,timeToHours(s.end_time)-HOUR_START);
         if(rowEnd<=rowStart)return;
@@ -1925,7 +1938,7 @@ function renderShiftListInto(listId,noMsgId){
     const nm=document.createElement('span');nm.textContent=u.name;header.appendChild(nm);
     list.appendChild(header);
     uShifts.forEach(s=>{
-      const isOff=s.is_day_off==='1'||s.is_day_off===1;
+      const isOff=s.is_day_off;
       const row=document.createElement('div');row.className=`shift-row${s.specific_date?' override':''}${isOff?' day-off':''}`;
       const dot=document.createElement('div');dot.style.cssText=`width:10px;height:10px;border-radius:50%;background:${u.avatar_color||'#F4A7B9'};flex-shrink:0`;row.appendChild(dot);
       const info=document.createElement('div');info.className='shift-row-info';
@@ -1933,7 +1946,7 @@ function renderShiftListInto(listId,noMsgId){
         info.innerHTML=`<div class="shift-row-name">${isOff?'🚫 Day off':'📅 Override'} — ${fmtDate(s.specific_date)}</div><div class="shift-row-time">${isOff?'Not working':'${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}'}</div>`;
         info.querySelector('.shift-row-time').textContent=isOff?'Not working this day':`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}`;
       } else {
-        info.innerHTML=`<div class="shift-row-name">🔁 ${SCHED_DAYS_FULL[Number(s.day_of_week)]}</div><div class="shift-row-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>`;
+        info.innerHTML=`<div class="shift-row-name">🔁 ${SCHED_DAYS_FULL[s.day_of_week]}</div><div class="shift-row-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>`;
       }
       row.appendChild(info);
       const btns=document.createElement('div');btns.style.cssText='display:flex;gap:.35rem';

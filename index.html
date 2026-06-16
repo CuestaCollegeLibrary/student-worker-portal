@@ -547,6 +547,8 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                   <label>Max completions per day</label>
                   <input class="input" id="t-collab-required" type="number" min="2" max="20" value="2"/>
                 </div>
+                <!-- Fairness suggestion panel — SLO only, shown when assigning to students -->
+                <div id="t-suggest-panel" class="suggest-panel" style="display:none"></div>
                 <!-- Points: hidden for staff/admin assignees -->
                 <div class="form-row col2 hidden" id="t-pts-row">
                   <div class="field"><label>Points</label><input class="input" id="t-pts" type="number" min="1" max="500" value="10"/></div>
@@ -1607,60 +1609,64 @@ function autoAssignAllDay(){
   return { type: 'specific', worker: sorted[0], workers };
 }
 
-// ── WORKER SUGGESTION PANEL (for timed tasks) ──
-function buildSuggestionPanel(startTime, endTime, containerId){
-  const c = $(containerId); if(!c) return;
-  c.innerHTML = '';
-  if(!startTime || !endTime){ c.style.display='none'; return; }
-  c.style.display = '';
-  const today = new Date();
-  const dow = today.getDay();
-  const dateStr = today.toISOString().slice(0,10);
-  const sStart = minsFromMidnight(startTime), sEnd = minsFromMidnight(endTime);
-  // Find SLO students with a shift overlapping the time window today
-  const sloStudents = campusUsers('student').filter(u => u.campus === 'SLO');
-  const candidates = sloStudents.map(u => {
-    const shift = workerShiftOn(u.id, today);
-    if(!shift) return null;
-    const shStart = minsFromMidnight(shift.start_time), shEnd = minsFromMidnight(shift.end_time);
-    if(shEnd <= sStart || shStart >= sEnd) return null; // no overlap
-    return { user: u, shift, score: fairnessScore(u.id) };
-  }).filter(Boolean).sort((a,b) => a.score - b.score);
-  if(!candidates.length){
-    c.innerHTML = '<p class="muted" style="font-size:.8rem">No workers scheduled during this time window today.</p>';
-    return;
+// ── FAIRNESS SUGGESTION PANEL ──
+// Shows all SLO students ranked by fairness score.
+// Clicking a row selects them in the assign dropdown (if specific_student type).
+// startTime/endTime are optional — used to filter to workers scheduled during that window.
+function buildFairnessSuggestionPanel(panelId, userSelectId, typeSelectId, startTime, endTime){
+  const c=$(panelId);if(!c)return;c.innerHTML='';
+  const atype=$(typeSelectId)?.value||'';
+  const sloStudents=campusUsers('student').filter(u=>u.campus==='SLO');
+  if(!sloStudents.length){c.innerHTML='<p class="muted" style="font-size:.8rem">No student workers on SLO.</p>';return;}
+  const today=new Date();
+  // If time window given, filter to workers scheduled during that window
+  let candidates=sloStudents;
+  if(startTime&&endTime){
+    const sStart=minsFromMidnight(startTime),sEnd=minsFromMidnight(endTime);
+    candidates=sloStudents.filter(u=>{
+      const shift=workerShiftOn(u.id,today);if(!shift)return false;
+      const shStart=minsFromMidnight(shift.start_time),shEnd=minsFromMidnight(shift.end_time);
+      return shEnd>sStart&&shStart<sEnd;
+    });
+    if(!candidates.length){c.innerHTML='<p class="muted" style="font-size:.8rem">No workers scheduled during this time window.</p>';return;}
   }
-  const header = document.createElement('div');
-  header.style.cssText = 'font-weight:700;font-size:.82rem;margin-bottom:.5rem;color:var(--pink-dark)';
-  header.textContent = '⚖️ Suggested workers (lowest fairness score = most behind)';
+  const scored=[...candidates].map(u=>({u,score:fairnessScore(u.id),shift:workerShiftOn(u.id,today)})).sort((a,b)=>a.score-b.score);
+  const header=document.createElement('div');
+  header.style.cssText='font-weight:700;font-size:.8rem;color:var(--pink-dark);margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem';
+  header.innerHTML='⚖️ Fairness ranking — <span style="font-weight:400;color:var(--muted)">lowest score = most behind, should get priority</span>';
   c.appendChild(header);
-  candidates.forEach((cand,i) => {
-    const row = document.createElement('div');
-    row.className = `suggest-row${i===0?' best':''}`;
-    row.appendChild(avatarEl(cand.user,'avatar-sm'));
-    const info = document.createElement('div');info.style.flex='1';
-    info.innerHTML = `<div style="font-weight:700;font-size:.84rem">${cand.user.name}${i===0?' 👈 Most behind':''}</div><div style="font-size:.74rem;color:var(--muted)">${fmtTime(cand.shift.start_time)}–${fmtTime(cand.shift.end_time)} today</div>`;
+  const isSpecific=atype==='specific_student';
+  scored.forEach((cand,i)=>{
+    const row=document.createElement('div');
+    row.className=`suggest-row${i===0?' best':''}`;
+    if(isSpecific) row.style.cursor='pointer'; else row.style.cursor='default';
+    row.appendChild(avatarEl(cand.u,'avatar-sm'));
+    const info=document.createElement('div');info.style.flex='1';info.style.minWidth='0';
+    const shift=cand.shift;
+    const shiftStr=shift?`${fmtTime(shift.start_time)}–${fmtTime(shift.end_time)} today`:'Not scheduled today';
+    info.innerHTML=`<div style="font-weight:700;font-size:.84rem">${cand.u.name}${i===0?' 👈':''}${!shift?' <span style="color:var(--faint);font-size:.72rem">· off today</span>':''}</div><div style="font-size:.73rem;color:var(--muted)">${shiftStr}</div>`;
     row.appendChild(info);
-    const score = document.createElement('div');score.className='suggest-score';
-    score.innerHTML = `<div style="font-weight:700">${fmtPts(cand.score)} pts/hr</div><div>${cand.user.points} pts total</div>`;
+    const score=document.createElement('div');score.className='suggest-score';
+    score.innerHTML=`<div style="font-weight:700;color:${i===0?'#C0294A':'var(--muted)'}">${fmtPts(cand.score)} p/hr</div><div>${cand.u.points} pts</div>`;
     row.appendChild(score);
-    // Clicking picks this worker in the assign dropdown
-    row.onclick = () => {
-      // Try admin form first, then staff
-      const tSel = $('t-assign-user'), tType = $('t-assign-type');
-      const st2Sel = $('st2-assign-user'), st2Type = $('st2-assign-type');
-      if(tType && tType.closest('.hidden')===null){
-        tType.value='specific_student';onAssignTypeChange();
-        if(tSel){tSel.value=cand.user.id;}
-      } else if(st2Type){
-        st2Type.value='specific_student';onStaff2AssignTypeChange();
-        if(st2Sel){st2Sel.value=cand.user.id;}
-      }
-      c.querySelectorAll('.suggest-row').forEach(r=>r.classList.remove('best','selected'));
-      row.classList.add('best');
-    };
+    // Click to select this worker
+    if(isSpecific){
+      row.onclick=()=>{
+        const sel=$(userSelectId);if(sel)sel.value=cand.u.id;
+        c.querySelectorAll('.suggest-row').forEach(r=>r.classList.remove('best'));
+        row.classList.add('best');
+      };
+    }
     c.appendChild(row);
   });
+}
+
+// Keep old buildSuggestionPanel as thin wrapper for slot time changes
+function buildSuggestionPanel(startTime, endTime, containerId){
+  // Map slot panel IDs to their form's select IDs
+  const typeId=containerId==='t-suggest-panel'?'t-assign-type':containerId==='st2-suggest-panel'?'st2-assign-type':null;
+  const selId=containerId==='t-suggest-panel'?'t-assign-user':containerId==='st2-suggest-panel'?'st2-assign-user':null;
+  buildFairnessSuggestionPanel(containerId,selId,typeId,startTime,endTime);
 }
 
 // ── SCHEDULE TAB RENDER ──
@@ -2965,6 +2971,16 @@ function onAssignTypeChange(){
     _fillSelect($('t-assign-user'),campusUsers('student'));
   }
   if(isCollabSpecific) _fillMulti($('t-collab-users'),campusUsers('student'));
+  // Show fairness panel for SLO student tasks
+  const panel=$('t-suggest-panel');
+  if(panel){
+    if(activeCampus==='SLO'&&isStudent){
+      panel.style.display='';
+      buildFairnessSuggestionPanel('t-suggest-panel','t-assign-user','t-assign-type');
+    } else {
+      panel.style.display='none';panel.innerHTML='';
+    }
+  }
 }
 
 function onStaffAssignTypeChange(){
@@ -2986,6 +3002,16 @@ function onStaff2AssignTypeChange(){
   if(v==='specific_student') _fillSelect($('st2-assign-user'),campusUsers('student'));
   if(v==='request') _fillSelect($('st2-request-user'),[...campusUsers('admin'),...campusUsers('staff')].filter(u=>u.id!==currentUser.id));
   if(isCollabSpecific) _fillMulti($('st2-collab-users'),campusUsers('student'));
+  // Show fairness panel for SLO student tasks
+  const panel=$('st2-suggest-panel');
+  if(panel){
+    if(activeCampus==='SLO'&&isStudent){
+      panel.style.display='';
+      buildFairnessSuggestionPanel('st2-suggest-panel','st2-assign-user','st2-assign-type');
+    } else {
+      panel.style.display='none';panel.innerHTML='';
+    }
+  }
 }
 function onStaff2RecurrenceChange(){const v=$('st2-recurrence').value;$('st2-rec-weekly').classList.toggle('hidden',v!=='weekly');$('st2-rec-monthly').classList.toggle('hidden',v!=='monthly');$('st2-rec-interval').classList.toggle('hidden',v!=='interval');}
 function onStaffRecurrenceChange(){const v=$('st-recurrence').value;$('st-rec-weekly').classList.toggle('hidden',v!=='weekly');$('st-rec-monthly').classList.toggle('hidden',v!=='monthly');$('st-rec-interval').classList.toggle('hidden',v!=='interval');}

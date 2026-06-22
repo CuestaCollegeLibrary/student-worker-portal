@@ -1432,7 +1432,7 @@ function rowsFromResult(result) {
 // ══════════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════════
-let users=[],tasks=[],completions=[],notifications=[],notifReads=[],
+let users=[],tasks=[],completions=[],notifications=[],notifReads=[],notifDeletes=[],
     pointAdjs=[],bonusPitches=[],helpRequests=[],dailyMessages=[];
 let currentUser=null, activeCampus=null;
 let editingTaskId=null, editingMsgId=null, reviewingPitch=null;
@@ -2072,6 +2072,7 @@ async function loadData() {
       {sql:`CREATE TABLE IF NOT EXISTS bonus_pitches (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',title TEXT NOT NULL,description TEXT NOT NULL,points_requested INTEGER NOT NULL DEFAULT 10,points_awarded INTEGER,status TEXT NOT NULL DEFAULT 'pending',admin_note TEXT,reviewed_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),reviewed_at TEXT)`},
       {sql:`CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY,from_user TEXT,to_user TEXT,to_campus TEXT,to_role TEXT,type TEXT NOT NULL DEFAULT 'message',title TEXT,body TEXT NOT NULL,icon TEXT NOT NULL DEFAULT '📢',thread_id TEXT,ref_id TEXT,campus TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
       {sql:`CREATE TABLE IF NOT EXISTS notification_reads (id TEXT PRIMARY KEY,notification_id TEXT NOT NULL,user_id TEXT NOT NULL,read_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(notification_id,user_id))`},
+      {sql:`CREATE TABLE IF NOT EXISTS notification_deletes (id TEXT PRIMARY KEY,notification_id TEXT NOT NULL,user_id TEXT NOT NULL,deleted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(notification_id,user_id))`},
       {sql:`CREATE TABLE IF NOT EXISTS semester_resets (id TEXT PRIMARY KEY,reset_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester_label TEXT NOT NULL,reset_by TEXT,campus TEXT NOT NULL DEFAULT 'SLO')`},
       {sql:`CREATE TABLE IF NOT EXISTS daily_messages (id TEXT PRIMARY KEY,campus TEXT NOT NULL DEFAULT 'SLO',show_date TEXT NOT NULL,title TEXT,body TEXT NOT NULL,icon TEXT NOT NULL DEFAULT '📢',created_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(campus,show_date))`},
       {sql:`CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',day_of_week INTEGER,start_time TEXT,end_time TEXT,specific_date TEXT,is_day_off INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
@@ -2101,12 +2102,13 @@ async function loadData() {
     await Promise.allSettled(migrations.map(sql=>tursoFetch(sql)));
     // ────────────────────────────────────────────────────────────
     await loadSchedules();
-    const [u,t,c,n,nr,pa,bp,hr,dm]=await Promise.all([
+    const [u,t,c,n,nr,nd,pa,bp,hr,dm]=await Promise.all([
       tursoFetch('SELECT * FROM users ORDER BY role,name'),
       tursoFetch('SELECT * FROM tasks ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM completions'),
       tursoFetch('SELECT * FROM notifications ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM notification_reads'),
+      tursoFetch('SELECT * FROM notification_deletes'),
       tursoFetch('SELECT * FROM point_adjustments ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM bonus_pitches ORDER BY created_at DESC'),
       tursoFetch('SELECT * FROM help_requests ORDER BY created_at DESC'),
@@ -2115,7 +2117,7 @@ async function loadData() {
     users=u.map(r=>({...r,points:Number(r.points)||0,completion_count:Number(r.completion_count)||0,weekly_hours:Number(r.weekly_hours)||0,must_reset_pw:r.must_reset_pw==='1'||r.must_reset_pw===1}));
     tasks=t.map(r=>({...r,points_value:r.points_value!=null?Number(r.points_value):10,collab_required:Number(r.collab_required)||2,recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,one_per_worker_day:r.one_per_worker_day==='1'||r.one_per_worker_day===1}));
     completions=c.map(r=>({...r,solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1,points_voided:r.points_voided==='1'||r.points_voided===1,slot_index:Number(r.slot_index)||0,pts_earned:Number(r.pts_earned)||0}));
-    notifications=n; notifReads=nr;
+    notifications=n; notifReads=nr; notifDeletes=nd;
     pointAdjs=pa.map(r=>({...r,points:Number(r.points)||0}));
     bonusPitches=bp.map(r=>({...r,points_requested:Number(r.points_requested)||0,points_awarded:r.points_awarded!=null?Number(r.points_awarded):null}));
     helpRequests=hr; dailyMessages=dm;
@@ -2340,7 +2342,7 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   }
   if(myVoided){const b=document.createElement('span');b.className='badge';b.style.cssText='background:#FFF0F2;color:#C0294A;border:1px solid #F4A7B9';b.textContent='⚠️ Points voided';titleRow.appendChild(b);}
   main.appendChild(titleRow);
-  if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;main.appendChild(d);}
+  if(task.description){const d=document.createElement('div');d.className='task-desc';d.innerHTML=linkify(task.description);main.appendChild(d);}
   const meta=document.createElement('div');meta.className='task-meta';
   if(task.points_value>0){
     const p=document.createElement('span');p.className='task-pts';
@@ -2978,13 +2980,15 @@ function renderStudentMessages(){
 // ══════════════════════════════════════════════════════════════
 // NOTIFICATIONS
 // ══════════════════════════════════════════════════════════════
+function isDeletedForMe(notifId){return notifDeletes.some(d=>d.notification_id===notifId&&d.user_id===currentUser?.id);}
+
 function getSentNotifications(){
   if(!currentUser) return [];
   return notifications.filter(n=>
     n.from_user===currentUser.id &&
     !n.thread_id &&
     n.type==='message' &&
-    // Exclude automated task assignment/update notifications
+    !isDeletedForMe(n.id) &&
     !['New Task Assigned','Task Updated','Task Request','New Task Request','Bonus Points Awarded','Points Deducted','Pitch Approved! ⭐','Pitch Not Approved','Points Voided','One-per-day Override'].includes(n.title)
   ).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 }
@@ -2993,6 +2997,7 @@ function getMyNotifications(){
   if(!currentUser) return [];
   return notifications.filter(n=>{
     if(n.thread_id) return false;
+    if(isDeletedForMe(n.id)) return false;
     if(n.to_user===currentUser.id) return true;
     if(n.to_campus===activeCampus&&(!n.to_role||n.to_role==='all')) return true;
     if(n.to_campus===activeCampus&&n.to_role===currentUser.role) return true;
@@ -3003,7 +3008,15 @@ function getMyNotifications(){
 }
  
 function isRead(notifId){return notifReads.some(r=>r.notification_id===notifId&&r.user_id===currentUser?.id);}
- 
+
+async function deleteNotifForMe(notifId){
+  if(!confirm('Delete this message? It will only be removed for you.'))return;
+  try{
+    await tursoFetch('INSERT OR IGNORE INTO notification_deletes(id,notification_id,user_id) VALUES(?,?,?)',[uuid(),notifId,currentUser.id]);
+    notifDeletes.push({id:uuid(),notification_id:notifId,user_id:currentUser.id});
+    await loadData();renderAll();
+  }catch(e){alert('Error: '+e.message);}
+}
 function updateNotifBadges(){
   const myNotifs=getMyNotifications();
   const unreadNotifs=myNotifs.filter(n=>!isRead(n.id)&&n.type!=='message').length;
@@ -3071,6 +3084,11 @@ function buildNotifRow(n, isSent=false){
   }
   if(!isSent&&n.type!=='motd'&&n.type!=='system'){
     const rb=document.createElement('button');rb.className='btn btn-ghost btn-sm';rb.textContent='↩ Reply';rb.style.marginTop='.5rem';rb.onclick=()=>openReplyModal(n);body.appendChild(rb);
+  }
+  // Delete button for all message rows (sent or received)
+  if(n.type==='message'){
+    const db=document.createElement('button');db.className='btn btn-danger btn-xs';db.style.cssText='margin-top:.5rem;margin-left:.35rem';db.textContent='🗑 Delete for me';
+    db.onclick=()=>deleteNotifForMe(n.id);body.appendChild(db);
   }
   row.appendChild(body);return row;
 }

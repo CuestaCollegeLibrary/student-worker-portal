@@ -1448,6 +1448,12 @@ const uuid=()=>([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRan
 const initials=n=>n.trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
 const fmtPts=p=>p==null?'0':(Math.round(Number(p)*100)/100).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1');
 const fmtDate=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+// Convert URLs in text to clickable links (XSS-safe: escapes everything else)
+function linkify(text){
+  if(!text) return '';
+  const escaped=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return escaped.replace(/(https?:\/\/[^\s<>"]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--pink-dark);text-decoration:underline;word-break:break-all">$1</a>');
+}
 const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':');const hr=Number(h);return `${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?'AM':'PM'}`;};
 const isPast=d=>d&&new Date(d)<new Date();
 const today=()=>new Date().toISOString().slice(0,10);
@@ -3037,7 +3043,9 @@ function buildNotifRow(n, isSent=false){
   const icon=document.createElement('div');icon.className='notif-icon';icon.textContent=n.icon||'📢';row.appendChild(icon);
   const body=document.createElement('div');body.className='notif-body';
   if(n.title){const t=document.createElement('div');t.className='notif-title';t.textContent=n.title;body.appendChild(t);}
-  const txt=document.createElement('div');txt.className='notif-text';txt.textContent=n.body;body.appendChild(txt);
+  const txt=document.createElement('div');txt.className='notif-text';
+  // Linkify URLs in message body
+  txt.innerHTML=linkify(n.body);body.appendChild(txt);
   const meta=document.createElement('div');meta.className='notif-meta';
   if(isSent){
     const toLabel=document.createElement('span');toLabel.className='notif-from';

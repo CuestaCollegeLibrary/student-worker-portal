@@ -311,6 +311,8 @@ textarea.input{resize:vertical;min-height:68px;}
 /* ── MOTD ── */
 #motd-modal{display:none;position:fixed;inset:0;z-index:9997;background:rgba(61,21,32,.5);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem;}
 #motd-modal.show{display:flex!important;}
+#unread-msg-modal{display:none;position:fixed;inset:0;z-index:9998;background:rgba(61,21,32,.5);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem;}
+#unread-msg-modal.show{display:flex!important;}
 .motd-box{background:#fff;border:2.5px solid var(--pink);border-radius:var(--r-xl);padding:2rem;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;text-align:center;animation:celebIn .4s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 40px rgba(244,167,185,.4);}
 .motd-icon{font-size:2.8rem;margin-bottom:.5rem;}
 .motd-from{font-size:.75rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--pink);margin-bottom:.4rem;}
@@ -1301,6 +1303,19 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 </div>
  
 <!-- MOTD modal -->
+<!-- Unread Messages Popup -->
+<div id="unread-msg-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div style="font-size:1.5rem;margin-bottom:.25rem;text-align:center">💌</div>
+    <h3 style="text-align:center">New Messages</h3>
+    <div id="unread-msg-list" style="display:flex;flex-direction:column;gap:.5rem;margin:.75rem 0;max-height:280px;overflow-y:auto"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" style="flex:1" onclick="dismissUnreadMessages()">Dismiss</button>
+      <button class="btn btn-primary" style="flex:1" onclick="dismissUnreadMessages(true)">View Messages →</button>
+    </div>
+  </div>
+</div>
+
 <div id="motd-modal" style="display:none">
   <div class="motd-box">
     <div class="motd-icon" id="motd-icon">📢</div>
@@ -2111,6 +2126,7 @@ function enterApp(){
   $('view-staff').classList.toggle('hidden',currentUser.role!=='staff');
   $('view-student').classList.toggle('hidden',currentUser.role!=='student');
   renderAll();checkMotd();
+  if(currentUser.role==='student') setTimeout(checkUnreadMessages, 300);
 }
  
 async function submitNewPassword(){
@@ -2895,9 +2911,13 @@ function renderStudentPitches(){
  
 function renderStudentNotifications(){
   const list=$('student-notif-list');if(!list)return;list.innerHTML='';
-  // Notifications tab shows non-message notifications (task events, voids, etc.)
-  const my=getMyNotifications().filter(n=>n.type!=='message');
+  // Notifications tab: only system events — voids, pitch results, overrides, help. Not messages or task assignments.
+  const my=getMyNotifications().filter(n=>n.type!=='message'&&n.type!=='task_assigned');
   $('no-student-notifs').classList.toggle('hidden',my.length>0);
+  if(!my.length){
+    const empty=document.createElement('p');empty.className='muted';empty.style.fontSize='.88rem';
+    empty.textContent='No notifications yet.';list.appendChild(empty);
+  }
   my.forEach(n=>list.appendChild(buildNotifRow(n)));
 }
 
@@ -2939,13 +2959,32 @@ function getMyNotifications(){
 function isRead(notifId){return notifReads.some(r=>r.notification_id===notifId&&r.user_id===currentUser?.id);}
  
 function updateNotifBadges(){
-  const unread=getMyNotifications().filter(n=>!isRead(n.id)).length;
-  ['admin-notif-tab','staff-notif-tab','student-notif-tab'].forEach(id=>{
+  const myNotifs=getMyNotifications();
+  const unreadNotifs=myNotifs.filter(n=>!isRead(n.id)&&n.type!=='message').length;
+  const unreadMsgs=myNotifs.filter(n=>!isRead(n.id)&&n.type==='message').length;
+
+  // Notification tab badges (system events only for students)
+  ['admin-notif-tab','staff-notif-tab'].forEach(id=>{
     const tab=$(id);if(!tab)return;
+    const total=myNotifs.filter(n=>!isRead(n.id)).length;
     let badge=tab.querySelector('.tab-badge');
-    if(unread>0){if(!badge){badge=document.createElement('span');badge.className='tab-badge';tab.appendChild(badge);}badge.textContent=unread>9?'9+':unread;}
+    if(total>0){if(!badge){badge=document.createElement('span');badge.className='tab-badge';tab.appendChild(badge);}badge.textContent=total>9?'9+':total;}
     else badge?.remove();
   });
+  // Students: badge notifications tab for system events, badge messages tab for messages
+  const sNotifTab=$('student-notif-tab');
+  if(sNotifTab){
+    let badge=sNotifTab.querySelector('.tab-badge');
+    if(unreadNotifs>0){if(!badge){badge=document.createElement('span');badge.className='tab-badge';sNotifTab.appendChild(badge);}badge.textContent=unreadNotifs>9?'9+':unreadNotifs;}
+    else badge?.remove();
+  }
+  // Badge the messages tab for students
+  const sMsgTab=[...(document.querySelectorAll('#student-tabs .tab'))].find(t=>t.textContent.includes('Messages'));
+  if(sMsgTab){
+    let badge=sMsgTab.querySelector('.tab-badge');
+    if(unreadMsgs>0){if(!badge){badge=document.createElement('span');badge.className='tab-badge';sMsgTab.appendChild(badge);}badge.textContent=unreadMsgs>9?'9+':unreadMsgs;}
+    else badge?.remove();
+  }
 }
  
 function buildNotifRow(n, isSent=false){
@@ -3659,6 +3698,31 @@ async function submitReply(){
 // ══════════════════════════════════════════════════════════════
 // MOTD
 // ══════════════════════════════════════════════════════════════
+function checkUnreadMessages(){
+  const unread=getMyNotifications().filter(n=>n.type==='message'&&!isRead(n.id));
+  if(!unread.length) return;
+  const list=$('unread-msg-list');
+  if(!list) return;
+  list.innerHTML='';
+  unread.slice(0,5).forEach(n=>{
+    const fromUser=users.find(u=>u.id===n.from_user);
+    const row=document.createElement('div');
+    row.style.cssText='background:var(--surface2);border-radius:var(--r);padding:.6rem .8rem;border-left:3px solid var(--pink)';
+    row.innerHTML=`<div style="font-weight:700;font-size:.82rem">${n.title||'Message'}</div><div style="font-size:.8rem;color:var(--muted);margin-top:.15rem">${n.body}</div><div style="font-size:.72rem;color:var(--faint);margin-top:.2rem">From: ${fromUser?.name||'Team'} · ${fmtDate(n.created_at)}</div>`;
+    list.appendChild(row);
+  });
+  if(unread.length>5){
+    const more=document.createElement('p');more.style.cssText='font-size:.78rem;color:var(--muted);text-align:center;margin:.25rem 0 0';
+    more.textContent=`+${unread.length-5} more`;list.appendChild(more);
+  }
+  $('unread-msg-modal').classList.add('show');
+}
+
+function dismissUnreadMessages(goToMessages=false){
+  $('unread-msg-modal').classList.remove('show');
+  if(goToMessages&&currentUser?.role==='student') studentTab('messages');
+}
+
 function checkMotd(){
   const td=today(),msg=dailyMessages.find(m=>m.campus===activeCampus&&m.show_date===td);if(!msg)return;
   const key=`motd_seen_${currentUser.id}_${td}`;if(localStorage.getItem(key))return;

@@ -1303,6 +1303,34 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
 </div>
  
 <!-- MOTD modal -->
+<!-- Message Edit/Resend Modal -->
+<div id="msg-resend-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3>✏️ Edit &amp; Resend Message</h3>
+    <div class="form-grid" style="margin-top:.75rem">
+      <div class="field"><label>Title (optional)</label><input class="input" id="resend-title" placeholder="Message title…"/></div>
+      <div class="field"><label>Message *</label><textarea class="input" id="resend-body" style="min-height:100px"></textarea></div>
+      <div class="field"><label>Send to</label>
+        <select class="input" id="resend-target" onchange="onResendTargetChange()">
+          <option value="same">↩ Same recipients as original</option>
+          <option value="campus">📢 Everyone on campus</option>
+          <option value="students">🎓 All Student Workers</option>
+          <option value="staff">🗂️ All Staff &amp; Admin</option>
+          <option value="specific">👤 Specific person</option>
+        </select>
+      </div>
+      <div class="field hidden" id="resend-user-field">
+        <label>Select person</label>
+        <select class="input" id="resend-user"><option value="">— Select —</option></select>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:1rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeMsgResendModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitResend()">Send 💌</button>
+    </div>
+  </div>
+</div>
+
 <!-- Unread Messages Popup -->
 <div id="unread-msg-modal" class="modal-overlay" style="display:none">
   <div class="modal-box">
@@ -2715,14 +2743,24 @@ function renderStaffMessages(){
   const received=getMyNotifications().filter(n=>n.type==='message');
   const sent=getSentNotifications();
   const noMsg=$('no-staff-msgs');
-
   if(!received.length&&!sent.length){if(noMsg)noMsg.classList.remove('hidden');return;}
   if(noMsg)noMsg.classList.add('hidden');
 
   if(sent.length){
     const sh=document.createElement('div');sh.style.cssText='font-family:"Playfair Display",serif;font-size:.9rem;color:var(--pink-dark);font-weight:700;margin-bottom:.5rem';sh.textContent='📤 Sent';
     list.appendChild(sh);
-    sent.forEach(n=>list.appendChild(buildNotifRow(n,true)));
+    sent.forEach(n=>{
+      const wrapper=document.createElement('div');wrapper.style.cssText='position:relative';
+      const row=buildNotifRow(n,true);
+      // Add edit + resend buttons
+      const btns=document.createElement('div');btns.style.cssText='display:flex;gap:.4rem;margin-top:.4rem';
+      const editBtn=document.createElement('button');editBtn.className='btn btn-ghost btn-xs';editBtn.textContent='✏️ Edit & Resend';
+      editBtn.onclick=()=>openMsgEditResend(n);btns.appendChild(editBtn);
+      const resendBtn=document.createElement('button');resendBtn.className='btn btn-sky btn-xs';resendBtn.textContent='🔁 Resend as-is';
+      resendBtn.onclick=()=>resendMessage(n);btns.appendChild(resendBtn);
+      row.querySelector('.notif-body')?.appendChild(btns);
+      wrapper.appendChild(row);list.appendChild(wrapper);
+    });
   }
   if(received.length){
     const rh=document.createElement('div');rh.style.cssText='font-family:"Playfair Display",serif;font-size:.9rem;color:var(--pink-dark);font-weight:700;margin:1rem 0 .5rem';rh.textContent='📥 Received';
@@ -2938,8 +2976,10 @@ function getSentNotifications(){
   if(!currentUser) return [];
   return notifications.filter(n=>
     n.from_user===currentUser.id &&
-    !n.thread_id && // exclude replies (shown inline on parent)
-    n.type==='message'
+    !n.thread_id &&
+    n.type==='message' &&
+    // Exclude automated task assignment/update notifications
+    !['New Task Assigned','Task Updated','Task Request','New Task Request','Bonus Points Awarded','Points Deducted','Pitch Approved! ⭐','Pitch Not Approved','Points Voided','One-per-day Override'].includes(n.title)
   ).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 }
 
@@ -3698,6 +3738,62 @@ async function submitReply(){
 // ══════════════════════════════════════════════════════════════
 // MOTD
 // ══════════════════════════════════════════════════════════════
+let resendingNotif=null;
+
+function onResendTargetChange(){
+  const v=$('resend-target').value;
+  $('resend-user-field').classList.toggle('hidden',v!=='specific');
+  if(v==='specific'){
+    const sel=$('resend-user');sel.innerHTML='<option value="">— Select —</option>';
+    [...campusUsers('admin'),...campusUsers('staff'),...campusUsers('student')].forEach(u=>{
+      const o=document.createElement('option');o.value=u.id;o.textContent=`${u.name} (${u.role})`;sel.appendChild(o);
+    });
+  }
+}
+
+function openMsgEditResend(notif){
+  resendingNotif=notif;
+  $('resend-title').value=notif.title||'';
+  $('resend-body').value=notif.body||'';
+  $('resend-target').value='same';
+  $('resend-user-field').classList.add('hidden');
+  $('msg-resend-modal').classList.add('show');
+}
+
+function closeMsgResendModal(){
+  $('msg-resend-modal').classList.remove('show');
+  resendingNotif=null;
+}
+
+async function resendMessage(notif){
+  if(!confirm('Resend this message to the same recipients?'))return;
+  setSyncing(true);
+  try{
+    await tursoFetch('INSERT INTO notifications(id,from_user,to_user,to_campus,to_role,type,title,body,icon,campus) VALUES(?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),currentUser.id,notif.to_user,notif.to_campus,notif.to_role,'message',notif.title,notif.body,notif.icon||'💬',activeCampus]);
+    await loadData();renderStaffMessages();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+async function submitResend(){
+  const body=($('resend-body').value||'').trim();if(!body)return alert('Please write a message.');
+  const title=($('resend-title').value||'').trim()||null;
+  const target=$('resend-target').value;
+  const orig=resendingNotif;
+  let to_user=null,to_campus=null,to_role=null;
+  if(target==='same'){to_user=orig.to_user;to_campus=orig.to_campus;to_role=orig.to_role;}
+  else if(target==='campus'){to_campus=activeCampus;to_role='all';}
+  else if(target==='students'){to_campus=activeCampus;to_role='students';}
+  else if(target==='staff'){to_campus=activeCampus;to_role='staff';}
+  else if(target==='specific'){to_user=$('resend-user').value;if(!to_user)return alert('Please select a person.');}
+  setSyncing(true);
+  try{
+    await tursoFetch('INSERT INTO notifications(id,from_user,to_user,to_campus,to_role,type,title,body,icon,campus) VALUES(?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),currentUser.id,to_user,to_campus,to_role,'message',title,body,'💬',activeCampus]);
+    closeMsgResendModal();await loadData();renderStaffMessages();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
 function checkUnreadMessages(){
   const unread=getMyNotifications().filter(n=>n.type==='message'&&!isRead(n.id));
   if(!unread.length) return;

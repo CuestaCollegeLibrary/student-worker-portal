@@ -1021,6 +1021,7 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
         <button class="tab" onclick="studentTab('history')">✅ History</button>
         <button class="tab" onclick="studentTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="studentTab('pitch')">⭐ Pitch for Points</button>
+        <button class="tab" onclick="studentTab('messages')">💌 Messages</button>
         <button class="tab" id="student-notif-tab" onclick="studentTab('notifications')">🔔 Notifications</button>
       </div>
       <div id="s-mytasks"><div class="task-list" id="student-my-task-list"></div><p class="muted hidden" id="no-student-mytasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned specifically to you.</p></div>
@@ -1050,6 +1051,12 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
           <div id="student-pitch-list" style="display:flex;flex-direction:column;gap:.65rem"></div>
           <p class="muted hidden" id="no-pitches-student" style="font-size:.88rem">No pitches yet.</p>
         </div>
+      </div>
+      <!-- STUDENT MESSAGES TAB -->
+      <div id="s-messages" class="hidden">
+        <h2 class="section-title">Messages</h2>
+        <div id="student-msg-list" style="display:flex;flex-direction:column;gap:.65rem"></div>
+        <p class="muted hidden" id="no-student-msgs" style="font-size:.88rem">No messages yet.</p>
       </div>
       <div id="s-notifications" class="hidden">
         <h2 class="section-title">Notifications</h2>
@@ -1495,10 +1502,11 @@ function staffTab(name){
   if(name==='notifications') renderStaffNotifications();
 }
 function studentTab(name){
-  const tabs=['mytasks','teamtasks','history','leaderboard','pitch','notifications'];
+  const tabs=['mytasks','teamtasks','history','leaderboard','pitch','messages','notifications'];
   tabs.forEach((t,i)=>$(`s-${t}`).classList.toggle('hidden',t!==name));
   $('student-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='notifications') renderStudentNotifications();
+  if(name==='messages') renderStudentMessages();
 }
  
 // ══════════════════════════════════════════════════════════════
@@ -2688,8 +2696,23 @@ function renderStaffLb(){
  
 function renderStaffMessages(){
   const list=$('staff-msg-list');if(!list)return;list.innerHTML='';
-  const my=getMyNotifications().filter(n=>n.type==='message');
-  $('no-staff-msgs').classList.toggle('hidden',my.length>0);my.forEach(n=>list.appendChild(buildNotifRow(n)));
+  const received=getMyNotifications().filter(n=>n.type==='message');
+  const sent=getSentNotifications();
+  const noMsg=$('no-staff-msgs');
+
+  if(!received.length&&!sent.length){if(noMsg)noMsg.classList.remove('hidden');return;}
+  if(noMsg)noMsg.classList.add('hidden');
+
+  if(sent.length){
+    const sh=document.createElement('div');sh.style.cssText='font-family:"Playfair Display",serif;font-size:.9rem;color:var(--pink-dark);font-weight:700;margin-bottom:.5rem';sh.textContent='📤 Sent';
+    list.appendChild(sh);
+    sent.forEach(n=>list.appendChild(buildNotifRow(n,true)));
+  }
+  if(received.length){
+    const rh=document.createElement('div');rh.style.cssText='font-family:"Playfair Display",serif;font-size:.9rem;color:var(--pink-dark);font-weight:700;margin:1rem 0 .5rem';rh.textContent='📥 Received';
+    list.appendChild(rh);
+    received.forEach(n=>list.appendChild(buildNotifRow(n)));
+  }
 }
  
 function renderStaffNotifications(){
@@ -2872,12 +2895,34 @@ function renderStudentPitches(){
  
 function renderStudentNotifications(){
   const list=$('student-notif-list');if(!list)return;list.innerHTML='';
-  const my=getMyNotifications();$('no-student-notifs').classList.toggle('hidden',my.length>0);my.forEach(n=>list.appendChild(buildNotifRow(n)));
+  // Notifications tab shows non-message notifications (task events, voids, etc.)
+  const my=getMyNotifications().filter(n=>n.type!=='message');
+  $('no-student-notifs').classList.toggle('hidden',my.length>0);
+  my.forEach(n=>list.appendChild(buildNotifRow(n)));
+}
+
+function renderStudentMessages(){
+  const list=$('student-msg-list');if(!list)return;list.innerHTML='';
+  // Messages received
+  const received=getMyNotifications().filter(n=>n.type==='message');
+  const noMsg=$('no-student-msgs');
+  if(!received.length){if(noMsg)noMsg.classList.remove('hidden');return;}
+  if(noMsg)noMsg.classList.add('hidden');
+  received.forEach(n=>list.appendChild(buildNotifRow(n)));
 }
  
 // ══════════════════════════════════════════════════════════════
 // NOTIFICATIONS
 // ══════════════════════════════════════════════════════════════
+function getSentNotifications(){
+  if(!currentUser) return [];
+  return notifications.filter(n=>
+    n.from_user===currentUser.id &&
+    !n.thread_id && // exclude replies (shown inline on parent)
+    n.type==='message'
+  ).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+}
+
 function getMyNotifications(){
   if(!currentUser) return [];
   return notifications.filter(n=>{
@@ -2903,9 +2948,10 @@ function updateNotifBadges(){
   });
 }
  
-function buildNotifRow(n){
+function buildNotifRow(n, isSent=false){
   const fromUser=users.find(u=>u.id===n.from_user);
-  const unread=!isRead(n.id);
+  const toUser=users.find(u=>u.id===n.to_user);
+  const unread=!isSent&&!isRead(n.id);
   if(unread) markRead(n.id);
   const replies=notifications.filter(r=>r.thread_id===n.id).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
   const row=document.createElement('div');row.className=`notif-row${unread?' unread':''}`;
@@ -2914,7 +2960,16 @@ function buildNotifRow(n){
   if(n.title){const t=document.createElement('div');t.className='notif-title';t.textContent=n.title;body.appendChild(t);}
   const txt=document.createElement('div');txt.className='notif-text';txt.textContent=n.body;body.appendChild(txt);
   const meta=document.createElement('div');meta.className='notif-meta';
-  if(fromUser){const f=document.createElement('span');f.className='notif-from';f.textContent=`From: ${fromUser.name}`;meta.appendChild(f);}
+  if(isSent){
+    const toLabel=document.createElement('span');toLabel.className='notif-from';
+    if(toUser) toLabel.textContent=`To: ${toUser.name}`;
+    else if(n.to_role&&n.to_campus) toLabel.textContent=`To: ${n.to_role==='all'?'Everyone':n.to_role==='students'?'All Students':n.to_role} @ ${n.to_campus}`;
+    else if(n.to_campus) toLabel.textContent=`To: ${n.to_campus} Campus`;
+    meta.appendChild(toLabel);
+    const sentLabel=document.createElement('span');sentLabel.style.cssText='font-size:.72rem;color:var(--faint);background:var(--surface2);border-radius:4px;padding:.1rem .4rem';sentLabel.textContent='Sent';meta.appendChild(sentLabel);
+  } else if(fromUser){
+    const f=document.createElement('span');f.className='notif-from';f.textContent=`From: ${fromUser.name}`;meta.appendChild(f);
+  }
   const d=document.createElement('span');d.className='notif-date';d.textContent=fmtDate(n.created_at);meta.appendChild(d);
   body.appendChild(meta);
   if(replies.length){
@@ -2927,7 +2982,7 @@ function buildNotifRow(n){
     });
     body.appendChild(thread);
   }
-  if(n.type!=='motd'&&n.type!=='system'){
+  if(!isSent&&n.type!=='motd'&&n.type!=='system'){
     const rb=document.createElement('button');rb.className='btn btn-ghost btn-sm';rb.textContent='↩ Reply';rb.style.marginTop='.5rem';rb.onclick=()=>openReplyModal(n);body.appendChild(rb);
   }
   row.appendChild(body);return row;

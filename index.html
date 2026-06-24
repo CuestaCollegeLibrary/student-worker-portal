@@ -2370,11 +2370,16 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   main.appendChild(meta);row.appendChild(main);
  
   const actions=document.createElement('div');actions.className='task-actions';
+  // isAdmin controls edit/delete visibility
+  // canComplete: anyone who isn't admin-viewing someone else's task can complete
+  const isOwnTask=String(effectiveAssign)===String(currentUser?.id)||task.task_type==='everyone'||task.task_type==='collaborative';
+  const canComplete=!isAdmin||(isAdmin&&isOwnTask&&currentUser?.role!=='admin');
   if(isAdmin){
     const cnt=document.createElement('span');cnt.style.cssText='color:var(--muted);font-size:.75rem;background:var(--surface2);border-radius:6px;padding:.2rem .5rem;border:1px solid var(--border)';cnt.textContent=`${occComps.length} done`;actions.appendChild(cnt);
     const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.title='Edit & reassign';eb.onclick=()=>openEditModal(task);actions.appendChild(eb);
     const del=document.createElement('button');del.className='btn btn-danger btn-xs';del.textContent='✕';del.onclick=()=>deleteTask(task.id);actions.appendChild(del);
-  } else {
+  }
+  if(!isAdmin||canComplete){
     if(myDone){
       const dc=document.createElement('span');dc.className=myVoided?'voided-note':'done-check';dc.textContent=myVoided?'✓ Done (pts voided)':'✓ Done';actions.appendChild(dc);
     } else if(isLocked){
@@ -2388,7 +2393,7 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
     } else {
       const btn=document.createElement('button');btn.className='btn btn-success btn-sm';btn.textContent='✓ Complete';
       btn.onclick=()=>completeTask(task,false,slotIdx,oKey);actions.appendChild(btn);
-      if(task.task_type==='specific'&&String(effectiveAssign)===String(currentUser?.id)){
+      if(task.task_type==='specific'&&String(effectiveAssign)===String(currentUser?.id)&&!isAdmin){
         if(currentUser.points>=(task.points_value*2)){const db=document.createElement('button');db.className='btn btn-danger btn-sm';db.textContent='✕ Decline';db.onclick=()=>openDeclineModal(task);actions.appendChild(db);}
         const hb=document.createElement('button');hb.className='btn btn-warn btn-sm';hb.textContent='🆘 Need Help';hb.onclick=()=>requestHelp(task);actions.appendChild(hb);
       }
@@ -2447,9 +2452,10 @@ function buildSlottedCard(task,isAdmin){
     if(assignee){const a=document.createElement('span');a.className='badge';a.textContent=`→ ${assignee.name}`;info.appendChild(a);}
     if(task.points_value>0){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${fmtPts(task.points_value)}pt`;info.appendChild(p);}
     sub.appendChild(info);
-    if(isAdmin){
-      const cnt=document.createElement('span');cnt.style.cssText='color:var(--muted);font-size:.74rem';cnt.textContent=`${occComps.length} done`;sub.appendChild(cnt);
-    } else {
+    if(isAdmin){const cnt=document.createElement('span');cnt.style.cssText='color:var(--muted);font-size:.74rem';cnt.textContent=`${occComps.length} done`;sub.appendChild(cnt);}
+    const isOwnSlot=!slot?.assign_to||String(slot.assign_to)===String(currentUser?.id);
+    const canCompleteSlot=!isAdmin||(isAdmin&&isOwnSlot&&currentUser?.role!=='admin');
+    if(canCompleteSlot){
       const act=document.createElement('div');
       if(myDone){const dc=document.createElement('span');dc.className='done-check';dc.textContent='✓';act.appendChild(dc);}
       else if(!inWindow){const wl=document.createElement('span');wl.style.cssText='font-size:.76rem;color:#7A5500;font-weight:600';wl.textContent='Not yet';act.appendChild(wl);}

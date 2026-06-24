@@ -776,6 +776,12 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
             <p class="muted" style="font-size:.84rem;margin-bottom:1rem">Tasks assigned directly to you.</p>
             <div class="task-list" id="staff-my-tasks"></div>
             <p class="muted hidden" id="no-staff-tasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned to you.</p>
+            <!-- Private tasks — SLO staff only, hidden from admin -->
+            <div id="staff-private-section" style="display:none;margin-top:1.5rem">
+              <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--muted);margin-bottom:.5rem">🔒 My Private Tasks</h3>
+              <div class="task-list" id="staff-private-tasks"></div>
+              <p class="muted hidden" id="no-staff-private" style="font-size:.88rem;margin-top:.35rem">No private tasks yet.</p>
+            </div>
           </div>
           <div class="sticky-panel">
             <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
@@ -796,6 +802,13 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
                 <div class="rec-options hidden" id="st-rec-interval"><div class="field"><label>Every how many days?</label><input class="input" id="st-rec-interval-val" type="number" min="2" max="365" value="7"/></div></div>
                 <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">Time Slots (optional)<button type="button" class="btn btn-sky btn-xs" onclick="addStSlot()">+ Add Slot</button></label><div id="st-slot-list" style="display:flex;flex-direction:column;gap:.5rem;margin-top:.35rem"></div><div style="color:var(--faint);font-size:.74rem;margin-top:.3rem">Leave empty for no time restriction</div></div>
                 <div class="field"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="st-one-per-worker" style="accent-color:var(--pink);width:15px;height:15px"/> One completion per worker per day</label></div>
+                <div class="field" id="st-private-field" style="display:none">
+                  <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+                    <input type="checkbox" id="st-is-private" style="accent-color:var(--pink);width:15px;height:15px"/>
+                    🔒 Private — only visible to me
+                  </label>
+                  <div style="color:var(--faint);font-size:.73rem;margin-top:.2rem">Admin cannot see private tasks</div>
+                </div>
                 <button class="btn btn-primary" onclick="staffAddMyTask()">Create Task</button>
               </div>
             </div>
@@ -1460,7 +1473,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const semester=()=>{const m=new Date().getMonth()+1,y=new Date().getFullYear();return `${y}-${m<=5?'Spring':m<=7?'Summer':'Fall'}`;};
 const $=id=>document.getElementById(id);
 const campusUsers=role=>users.filter(u=>u.campus===activeCampus&&u.role===role&&u.active!=='0'&&u.active!==0);
-const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus);
+const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
 const setCampusAccent=c=>document.documentElement.style.setProperty('--campus',CAMPUS_COLORS[c]||'#F4A7B9');
 
 // ── POINTS PER HOUR ────────────────────────────────────────────
@@ -2064,7 +2077,7 @@ async function loadData() {
   try {
     await tursoBatch([
       {sql:`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,username TEXT NOT NULL,password TEXT NOT NULL DEFAULT '',must_reset_pw INTEGER NOT NULL DEFAULT 1,role TEXT NOT NULL DEFAULT 'student',campus TEXT NOT NULL DEFAULT 'SLO',avatar_color TEXT NOT NULL DEFAULT '#F4A7B9',points INTEGER NOT NULL DEFAULT 0,completion_count INTEGER NOT NULL DEFAULT 0,weekly_hours REAL NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),created_by TEXT)`},
-      {sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT,points_value INTEGER NOT NULL DEFAULT 10,deadline TEXT,priority TEXT NOT NULL DEFAULT 'medium',task_type TEXT NOT NULL DEFAULT 'everyone',assign_to TEXT,campus TEXT NOT NULL DEFAULT 'SLO',collab_required INTEGER NOT NULL DEFAULT 2,created_by TEXT,created_by_role TEXT NOT NULL DEFAULT 'admin',requested_by TEXT,recurrence TEXT NOT NULL DEFAULT 'none',recurrence_interval INTEGER,recurrence_day INTEGER,slot_config TEXT,one_per_worker_day INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
+      {sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT,points_value INTEGER NOT NULL DEFAULT 10,deadline TEXT,priority TEXT NOT NULL DEFAULT 'medium',task_type TEXT NOT NULL DEFAULT 'everyone',assign_to TEXT,campus TEXT NOT NULL DEFAULT 'SLO',collab_required INTEGER NOT NULL DEFAULT 2,created_by TEXT,created_by_role TEXT NOT NULL DEFAULT 'admin',requested_by TEXT,recurrence TEXT NOT NULL DEFAULT 'none',recurrence_interval INTEGER,recurrence_day INTEGER,slot_config TEXT,one_per_worker_day INTEGER NOT NULL DEFAULT 0,is_private INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
       {sql:`CREATE TABLE IF NOT EXISTS completions (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,completed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester TEXT NOT NULL DEFAULT 'current',occurrence_key TEXT NOT NULL DEFAULT 'once',slot_index INTEGER NOT NULL DEFAULT 0,solo_claimed INTEGER NOT NULL DEFAULT 0,override_reason TEXT,points_voided INTEGER NOT NULL DEFAULT 0,void_reason TEXT,pts_earned REAL NOT NULL DEFAULT 0,UNIQUE(task_id,user_id,occurrence_key))`},
       {sql:`CREATE TABLE IF NOT EXISTS task_rejections (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,rejected_by TEXT NOT NULL,reason TEXT NOT NULL,points_deducted INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
       {sql:`CREATE TABLE IF NOT EXISTS help_requests (id TEXT PRIMARY KEY,task_id TEXT NOT NULL,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),resolved INTEGER NOT NULL DEFAULT 0,resolved_by TEXT,resolved_at TEXT)`},
@@ -2091,6 +2104,7 @@ async function loadData() {
       `ALTER TABLE tasks ADD COLUMN recurrence_day INTEGER`,
       `ALTER TABLE tasks ADD COLUMN slot_config TEXT`,
       `ALTER TABLE tasks ADD COLUMN one_per_worker_day INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE tasks ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE completions ADD COLUMN semester TEXT NOT NULL DEFAULT 'current'`,
       `ALTER TABLE completions ADD COLUMN occurrence_key TEXT NOT NULL DEFAULT 'once'`,
       `ALTER TABLE completions ADD COLUMN slot_index INTEGER NOT NULL DEFAULT 0`,
@@ -2115,7 +2129,7 @@ async function loadData() {
       tursoFetch('SELECT * FROM daily_messages ORDER BY show_date DESC'),
     ]);
     users=u.map(r=>({...r,points:Number(r.points)||0,completion_count:Number(r.completion_count)||0,weekly_hours:Number(r.weekly_hours)||0,must_reset_pw:r.must_reset_pw==='1'||r.must_reset_pw===1}));
-    tasks=t.map(r=>({...r,points_value:r.points_value!=null?Number(r.points_value):10,collab_required:Number(r.collab_required)||2,recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,one_per_worker_day:r.one_per_worker_day==='1'||r.one_per_worker_day===1}));
+    tasks=t.map(r=>({...r,points_value:r.points_value!=null?Number(r.points_value):10,collab_required:Number(r.collab_required)||2,recurrence_interval:r.recurrence_interval?Number(r.recurrence_interval):null,recurrence_day:r.recurrence_day!=null?Number(r.recurrence_day):null,one_per_worker_day:r.one_per_worker_day==='1'||r.one_per_worker_day===1,is_private:r.is_private==='1'||r.is_private===1}));
     completions=c.map(r=>({...r,solo_claimed:r.solo_claimed==='1'||r.solo_claimed===1,points_voided:r.points_voided==='1'||r.points_voided===1,slot_index:Number(r.slot_index)||0,pts_earned:Number(r.pts_earned)||0}));
     notifications=n; notifReads=nr; notifDeletes=nd;
     pointAdjs=pa.map(r=>({...r,points:Number(r.points)||0}));
@@ -2321,6 +2335,7 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   titleRow.appendChild(titleText);
  
   const pri=document.createElement('span');pri.className=`badge badge-${task.priority||'medium'}`;pri.textContent={low:'Low',medium:'Medium',high:'High'}[task.priority]||'Medium';titleRow.appendChild(pri);
+  if(task.is_private){const b=document.createElement('span');b.className='badge';b.style.cssText='background:#F3E8FF;color:#5C2A70;border:1px solid #D4B8E0';b.textContent='🔒 Private';titleRow.appendChild(b);}
   if(task.task_type==='collaborative'){const b=document.createElement('span');b.className='badge badge-collab';b.textContent='🤝 Collab';titleRow.appendChild(b);}
   else if(effectiveType==='everyone'){const b=document.createElement('span');b.className='badge badge-everyone';b.textContent='📢 Everyone';titleRow.appendChild(b);}
   // Collab-specific badge: same title + same creator + same campus, multiple specific tasks
@@ -2694,12 +2709,26 @@ function renderStaffHero(){
 function renderStaffMyTasks(){
   const list=$('staff-my-tasks');
   if(!list)return;list.innerHTML='';
-  const mine=tasks.filter(t=>t.campus===activeCampus&&t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id));
-  // Build items with oKey, filter hidden, sort
+  const isSLOStaff=activeCampus==='SLO'&&currentUser.role==='staff';
+  // Show/hide private field in form
+  const privField=$('st-private-field');if(privField)privField.style.display=isSLOStaff?'':'none';
+  // Regular tasks (non-private)
+  const mine=tasks.filter(t=>t.campus===activeCampus&&t.task_type==='specific'&&String(t.assign_to)===String(currentUser.id)&&!t.is_private);
   const items=mine.map(t=>({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null}));
   const visible=sortTasksForStaff(items.filter(({task,slotIdx,oKey})=>!isTaskHidden(task,slotIdx,oKey,currentUser.id)));
   $('no-staff-tasks').classList.toggle('hidden',visible.length>0);
   visible.forEach(({task})=>buildTaskRows(task,true).forEach(r=>list.appendChild(r)));
+  // Private tasks section (SLO staff only)
+  const privSection=$('staff-private-section');
+  if(privSection)privSection.style.display=isSLOStaff?'':'none';
+  if(isSLOStaff){
+    const privList=$('staff-private-tasks');if(!privList)return;privList.innerHTML='';
+    const myPrivate=tasks.filter(t=>t.is_private&&String(t.created_by)===String(currentUser.id));
+    const privItems=myPrivate.map(t=>({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null}));
+    const privVisible=sortTasksForStaff(privItems.filter(({task,slotIdx,oKey})=>!isTaskHidden(task,slotIdx,oKey,currentUser.id)));
+    $('no-staff-private').classList.toggle('hidden',privVisible.length>0);
+    privVisible.forEach(({task})=>buildTaskRows(task,true).forEach(r=>privList.appendChild(r)));
+  }
 }
 
 // Sort for staff: same rules as students — incomplete first, open window first, then pts ascending
@@ -3373,10 +3402,12 @@ async function staffAddMyTask(){
   const recInt=rec==='interval'?Number($('st-rec-interval-val').value):null;
   const slotConfig=stTaskSlots.length?JSON.stringify(stTaskSlots):null;
   const onePer=$('st-one-per-worker').checked?1:0;
+  const isPrivate=activeCampus==='SLO'&&currentUser.role==='staff'&&($('st-is-private')?.checked?1:0);
   setSyncing(true);
   try{
-    await _insertTask({title,desc:($('st-desc').value||'').trim(),pts:0,priority:$('st-priority').value,taskType:'specific',assignTo:currentUser.id,rec,recDay,recInt,slotConfig,onePer});
-    $('st-title').value='';$('st-desc').value='';$('st-priority').value='medium';$('st-deadline').value='';$('st-recurrence').value='none';$('st-one-per-worker').checked=false;
+    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day,is_private) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),title,($('st-desc').value||'').trim()||null,0,$('st-deadline').value||null,$('st-priority').value,'specific',currentUser.id,activeCampus,2,currentUser.id,'staff',rec,recInt,recDay,slotConfig,onePer,isPrivate]);
+    $('st-title').value='';$('st-desc').value='';$('st-priority').value='medium';$('st-deadline').value='';$('st-recurrence').value='none';$('st-one-per-worker').checked=false;if($('st-is-private'))$('st-is-private').checked=false;
     onStaffRecurrenceChange();stTaskSlots=[];renderSlotList('st-slot-list',stTaskSlots,'st');await loadData();
   }catch(e){alert('Error: '+e.message);}setSyncing(false);
 }

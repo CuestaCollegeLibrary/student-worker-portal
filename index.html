@@ -2075,6 +2075,7 @@ function onTaskTimeChange(startId,endId,containerId){
 async function loadData() {
   setSyncing(true);
   try {
+    // Create tables first
     await tursoBatch([
       {sql:`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,username TEXT NOT NULL,password TEXT NOT NULL DEFAULT '',must_reset_pw INTEGER NOT NULL DEFAULT 1,role TEXT NOT NULL DEFAULT 'student',campus TEXT NOT NULL DEFAULT 'SLO',avatar_color TEXT NOT NULL DEFAULT '#F4A7B9',points INTEGER NOT NULL DEFAULT 0,completion_count INTEGER NOT NULL DEFAULT 0,weekly_hours REAL NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),created_by TEXT)`},
       {sql:`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT,points_value INTEGER NOT NULL DEFAULT 10,deadline TEXT,priority TEXT NOT NULL DEFAULT 'medium',task_type TEXT NOT NULL DEFAULT 'everyone',assign_to TEXT,campus TEXT NOT NULL DEFAULT 'SLO',collab_required INTEGER NOT NULL DEFAULT 2,created_by TEXT,created_by_role TEXT NOT NULL DEFAULT 'admin',requested_by TEXT,recurrence TEXT NOT NULL DEFAULT 'none',recurrence_interval INTEGER,recurrence_day INTEGER,slot_config TEXT,one_per_worker_day INTEGER NOT NULL DEFAULT 0,is_private INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
@@ -2089,8 +2090,9 @@ async function loadData() {
       {sql:`CREATE TABLE IF NOT EXISTS semester_resets (id TEXT PRIMARY KEY,reset_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),semester_label TEXT NOT NULL,reset_by TEXT,campus TEXT NOT NULL DEFAULT 'SLO')`},
       {sql:`CREATE TABLE IF NOT EXISTS daily_messages (id TEXT PRIMARY KEY,campus TEXT NOT NULL DEFAULT 'SLO',show_date TEXT NOT NULL,title TEXT,body TEXT NOT NULL,icon TEXT NOT NULL DEFAULT '📢',created_by TEXT,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),UNIQUE(campus,show_date))`},
       {sql:`CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,campus TEXT NOT NULL DEFAULT 'SLO',day_of_week INTEGER,start_time TEXT,end_time TEXT,specific_date TEXT,is_day_off INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`},
-      {sql:`INSERT OR IGNORE INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color) VALUES('admin-slo','SLO Admin','admin','Cougar007@',0,'admin','SLO','#F4A7B9'),('admin-ncc','NCC Admin','admin','Cougar007@',0,'admin','NCC','#D4B8E0')`},
     ]);
+    // Seed default admin accounts
+    await tursoFetch(`INSERT OR IGNORE INTO users(id,name,username,password,must_reset_pw,role,campus,avatar_color,weekly_hours) VALUES('admin-slo','SLO Admin','admin','Cougar007@',0,'admin','SLO','#F4A7B9',0),('admin-ncc','NCC Admin','admin','Cougar007@',0,'admin','NCC','#D4B8E0',0)`);
     // ── Migrations: silently add columns missing in older databases ──
     const migrations=[
       `ALTER TABLE users ADD COLUMN completion_count INTEGER NOT NULL DEFAULT 0`,

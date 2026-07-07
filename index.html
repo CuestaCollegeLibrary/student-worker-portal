@@ -1070,6 +1070,15 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <!-- STUDENT MESSAGES TAB -->
       <div id="s-messages" class="hidden">
         <h2 class="section-title">Messages</h2>
+        <!-- Tutorial re-entry card -->
+        <div onclick="openTutorial()" style="display:flex;align-items:center;gap:.75rem;background:#FBEAF0;border:1px solid #F4C0D1;border-radius:var(--r);padding:.75rem 1rem;margin-bottom:1rem;cursor:pointer">
+          <div style="width:36px;height:36px;background:#F4A7B9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">📚</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:.88rem;color:#4B1528">How to use the app</div>
+            <div style="font-size:.78rem;color:#72243E;margin-top:.1rem">Review the getting started guide anytime</div>
+          </div>
+          <span style="font-size:1.1rem;color:#F4A7B9">›</span>
+        </div>
         <div id="student-msg-list" style="display:flex;flex-direction:column;gap:.65rem"></div>
         <p class="muted hidden" id="no-student-msgs" style="font-size:.88rem">No messages yet.</p>
       </div>
@@ -1340,6 +1349,27 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div class="modal-btns" style="margin-top:1rem">
       <button class="btn btn-ghost" style="flex:1" onclick="closeMsgResendModal()">Cancel</button>
       <button class="btn btn-primary" style="flex:1" onclick="submitResend()">Send 💌</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student Onboarding Tutorial -->
+<div id="tutorial-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(61,21,32,.55);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--surface-2,#fff);border-radius:16px;border:0.5px solid var(--border);width:100%;max-width:520px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column">
+    <div style="background:#F4A7B9;padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:30px;height:30px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px">📚</div>
+        <span style="font-weight:600;color:#4B1528;font-size:14px">Welcome to the Library Team!</span>
+      </div>
+      <button onclick="closeTutorial()" style="background:none;border:none;cursor:pointer;color:#4B1528;font-size:22px;line-height:1;padding:0">×</button>
+    </div>
+    <div style="padding:1.25rem 1.4rem;overflow-y:auto;flex:1">
+      <div id="tut-slide" style="min-height:300px"></div>
+      <div id="tut-dots" style="display:flex;gap:6px;justify-content:center;margin:.85rem 0 .6rem"></div>
+      <div style="display:flex;gap:8px">
+        <button id="tut-back" onclick="tutGo(-1)" style="flex:1;display:none;background:var(--surface-1);border:0.5px solid var(--border);border-radius:var(--radius);padding:.55rem;cursor:pointer;font-size:13px;color:var(--text-primary)">← Back</button>
+        <button id="tut-next" onclick="tutGo(1)" style="flex:2;background:#F4A7B9;border:none;color:#4B1528;font-weight:600;border-radius:var(--radius);padding:.55rem 1rem;cursor:pointer;font-size:13px">Next →</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2183,6 +2213,7 @@ function enterApp(){
   $('view-student').classList.toggle('hidden',currentUser.role!=='student');
   renderAll();checkMotd();
   if(currentUser.role==='student') setTimeout(checkUnreadMessages, 300);
+  if(currentUser.role==='student') checkFirstLogin();
 }
  
 async function submitNewPassword(){
@@ -3886,6 +3917,245 @@ function checkUnreadMessages(){
 function dismissUnreadMessages(goToMessages=false){
   $('unread-msg-modal').classList.remove('show');
   if(goToMessages&&currentUser?.role==='student') studentTab('messages');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// STUDENT ONBOARDING TUTORIAL
+// ══════════════════════════════════════════════════════════════
+const TUT_SLIDES=[
+  {
+    icon:'📋',title:'My Tasks vs Team Tasks',
+    body:'<b>My Tasks</b> shows work assigned specifically to you — only you need to complete these. <b>Team Tasks</b> shows duties open to the whole team that anyone can pick up during their shift.',
+    tip:'Start with My Tasks — those are your personal responsibilities first.',
+    img:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:.75rem 0">
+      <div style="background:#FFF5F8;border-radius:10px;border:1.5px solid #F4A7B9;padding:.6rem">
+        <div style="font-size:11px;font-weight:600;color:#4B1528;margin-bottom:.4rem">📋 My Tasks</div>
+        <div style="background:white;border-radius:7px;border:0.5px solid #F4C0D1;padding:.45rem .55rem;margin-bottom:.3rem">
+          <div style="font-size:10px;font-weight:500;color:#333">Shelf reading — Aisle 4</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.25rem">
+            <span style="font-size:9px;background:#FFF8E0;color:#7A5500;border-radius:4px;padding:1px 5px;border:0.5px solid #FFEAA0">10 pts</span>
+            <span style="font-size:9px;background:#1D9E75;color:white;border-radius:4px;padding:2px 6px">✓ Complete</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:7px;border:0.5px solid #F4C0D1;padding:.45rem .55rem">
+          <div style="font-size:10px;font-weight:500;color:#333">Open laptop cart</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.25rem">
+            <span style="font-size:9px;background:#FFF8E0;color:#7A5500;border-radius:4px;padding:1px 5px;border:0.5px solid #FFEAA0">5 pts</span>
+            <span style="font-size:9px;background:#1D9E75;color:white;border-radius:4px;padding:2px 6px">✓ Complete</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#F0F6FF;border-radius:10px;border:1.5px solid #B5D4F4;padding:.6rem">
+        <div style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:.4rem">📢 Team Tasks</div>
+        <div style="background:white;border-radius:7px;border:0.5px solid #B5D4F4;padding:.45rem .55rem;margin-bottom:.3rem">
+          <div style="font-size:10px;font-weight:500;color:#333">Wipe down study tables</div>
+          <div style="margin-top:.25rem"><span style="font-size:9px;background:#E6F1FB;color:#185FA5;border-radius:4px;padding:1px 5px;border:0.5px solid #B5D4F4">📢 Everyone</span></div>
+        </div>
+        <div style="background:white;border-radius:7px;border:0.5px solid #B5D4F4;padding:.45rem .55rem">
+          <div style="font-size:10px;font-weight:500;color:#333">Restock printer paper</div>
+          <div style="margin-top:.25rem"><span style="font-size:9px;background:#E6F1FB;color:#185FA5;border-radius:4px;padding:1px 5px;border:0.5px solid #B5D4F4">📢 Everyone</span></div>
+        </div>
+      </div>
+    </div>`
+  },
+  {
+    icon:'✓',title:'Marking tasks complete',
+    body:'Tap the green <b>✓ Complete</b> button when you finish a task. Points are added to your total instantly. Completed one-time tasks disappear from your list — find them in History.',
+    tip:'A ✓ Done badge means you already completed it. Check History to see past completions.',
+    img:`<div style="margin:.75rem 0">
+      <div style="background:white;border-radius:9px;border:0.5px solid #ddd;padding:.65rem .85rem;margin-bottom:.4rem">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:11px;font-weight:500;color:#333">Shelf reading — Aisle 4</div>
+            <div style="font-size:9px;color:#888;margin-top:2px">Assigned to you · Due today</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:10px;background:#FFF8E0;color:#7A5500;border-radius:4px;padding:2px 6px;border:0.5px solid #FFEAA0;font-weight:500">+10 pts</span>
+            <span style="font-size:10px;background:#1D9E75;color:white;border-radius:6px;padding:3px 9px;font-weight:500">✓ Complete</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#EAF8F0;border-radius:9px;border:0.5px solid #A0D9BB;padding:.65rem .85rem;opacity:.75">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:11px;font-weight:500;color:#085041">Open laptop cart</div>
+            <div style="font-size:9px;color:#0F6E56;margin-top:2px">Completed earlier today</div>
+          </div>
+          <span style="font-size:11px;color:#1D9E75;font-weight:600">✓ Done</span>
+        </div>
+      </div>
+      <div style="background:#F4A7B9;border-radius:8px;padding:.45rem .75rem;margin-top:.45rem;display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">🎉</span>
+        <div><div style="font-size:11px;font-weight:600;color:#4B1528">Nice work! +10 points earned</div><div style="font-size:9px;color:#72243E">Your total is now 45 pts</div></div>
+      </div>
+    </div>`
+  },
+  {
+    icon:'🕐',title:'Time-slotted tasks',
+    body:'Some tasks are only available during certain hours. You\'ll see a time badge on the task. The complete button appears automatically when the window opens.',
+    tip:'If you see "Not yet" — the time window hasn\'t opened. Come back later.',
+    img:`<div style="margin:.75rem 0">
+      <div style="background:white;border-radius:9px;border:0.5px solid #ddd;padding:.7rem .85rem">
+        <div style="font-size:11px;font-weight:500;color:#333;margin-bottom:.45rem">🗂️ Closing checklist <span style="background:#EAF8F0;color:#1A6B44;font-size:9px;border-radius:4px;padding:1px 5px;border:0.5px solid #A0D9BB;margin-left:4px">2 slots</span></div>
+        <div style="background:#EAF8F0;border-radius:7px;padding:.4rem .6rem;margin-bottom:.3rem;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:10px;font-weight:600;color:#085041">Morning slot</div>
+            <div style="font-size:9px;background:#EAF8F0;color:#1A6B44;display:inline-block;border-radius:4px;padding:1px 5px;border:0.5px solid #A0D9BB;margin-top:2px">🕐 8:00–9:00 AM · open now</div>
+          </div>
+          <span style="font-size:10px;background:#1D9E75;color:white;border-radius:6px;padding:3px 9px;font-weight:500">✓ Complete</span>
+        </div>
+        <div style="background:#FFF8E0;border-radius:7px;padding:.4rem .6rem;display:flex;align-items:center;justify-content:space-between;opacity:.7">
+          <div>
+            <div style="font-size:10px;font-weight:600;color:#7A5500">Evening slot</div>
+            <div style="font-size:9px;background:#FFF8E0;color:#7A5500;display:inline-block;border-radius:4px;padding:1px 5px;border:0.5px solid #FFEAA0;margin-top:2px">🕐 Available 7:00–8:00 PM</div>
+          </div>
+          <span style="font-size:10px;color:#7A5500;font-weight:600">Not yet</span>
+        </div>
+      </div>
+    </div>`
+  },
+  {
+    icon:'✅',title:'Your History',
+    body:'The History tab keeps a record of every task you\'ve completed and every point adjustment — including bonuses and voids. One-time tasks live here after they drop off your list.',
+    tip:'Points voided by a supervisor appear here with the reason noted.',
+    img:`<div style="margin:.75rem 0">
+      <div style="display:flex;gap:6px;margin-bottom:.5rem">
+        <div style="background:#F4A7B9;border-radius:20px;padding:3px 10px;font-size:10px;color:#4B1528;font-weight:500">All</div>
+        <div style="background:#f3f3f3;border-radius:20px;padding:3px 10px;font-size:10px;color:#666">Completions</div>
+        <div style="background:#f3f3f3;border-radius:20px;padding:3px 10px;font-size:10px;color:#666">Adjustments</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.35rem">
+        <div style="background:white;border-radius:8px;border:0.5px solid #ddd;padding:.5rem .7rem;display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:11px;font-weight:500;color:#333">Shelf reading — Aisle 4</div><div style="font-size:9px;color:#888">Today · 10:24 AM</div></div>
+          <span style="font-size:11px;color:#1D9E75;font-weight:600">+10 pts</span>
+        </div>
+        <div style="background:white;border-radius:8px;border:0.5px solid #ddd;padding:.5rem .7rem;display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:11px;font-weight:500;color:#333">Bonus — helped with event setup</div><div style="font-size:9px;color:#888">Yesterday · Staff approved</div></div>
+          <span style="font-size:11px;color:#1D9E75;font-weight:600">+25 pts</span>
+        </div>
+        <div style="background:white;border-radius:8px;border:0.5px solid #ddd;padding:.5rem .7rem;display:flex;justify-content:space-between;align-items:center;opacity:.55">
+          <div><div style="font-size:11px;font-weight:500;color:#333">Open laptop cart</div><div style="font-size:9px;color:#C0294A">Points voided · completed by someone else</div></div>
+          <span style="font-size:11px;color:#C0294A;font-weight:600;text-decoration:line-through">+5 pts</span>
+        </div>
+      </div>
+    </div>`
+  },
+  {
+    icon:'🏆',title:'Leaderboard',
+    body:'Rankings are based on points per hour worked — so a shorter shift doesn\'t put you at a disadvantage. It accounts for your earned points, pending tasks, and scheduled hours.',
+    tip:'Focus on doing good work consistently — the score takes care of itself.',
+    img:`<div style="margin:.75rem 0">
+      <div style="font-size:10px;color:#888;margin-bottom:.45rem">Ranked by pts/hr · SLO Campus</div>
+      <div style="display:flex;flex-direction:column;gap:.3rem">
+        <div style="background:#FFF8E0;border-radius:8px;border:0.5px solid #FFEAA0;padding:.5rem .7rem;display:flex;align-items:center;gap:9px">
+          <span style="font-size:13px">🥇</span>
+          <div style="width:26px;height:26px;border-radius:50%;background:#F4A7B9;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#4B1528">MJ</div>
+          <div style="flex:1"><div style="font-size:11px;font-weight:500;color:#333">MJ</div><div style="height:4px;background:#F4A7B9;border-radius:2px;margin-top:3px;width:88%"></div></div>
+          <div style="text-align:right"><div style="font-size:11px;font-weight:600;color:#7A5500">2.4 p/hr</div><div style="font-size:9px;color:#888">104 pts</div></div>
+        </div>
+        <div style="background:white;border-radius:8px;border:0.5px solid #ddd;padding:.5rem .7rem;display:flex;align-items:center;gap:9px">
+          <span style="font-size:13px">🥈</span>
+          <div style="width:26px;height:26px;border-radius:50%;background:#CECBF6;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#26215C">Z</div>
+          <div style="flex:1"><div style="font-size:11px;font-weight:500;color:#333">Zack</div><div style="height:4px;background:#CECBF6;border-radius:2px;margin-top:3px;width:62%"></div></div>
+          <div style="text-align:right"><div style="font-size:11px;font-weight:600;color:#888">1.6 p/hr</div><div style="font-size:9px;color:#888">50 pts</div></div>
+        </div>
+        <div style="background:white;border-radius:8px;border:0.5px solid #ddd;padding:.5rem .7rem;display:flex;align-items:center;gap:9px">
+          <span style="font-size:13px">🥉</span>
+          <div style="width:26px;height:26px;border-radius:50%;background:#9FE1CB;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#04342C">R</div>
+          <div style="flex:1"><div style="font-size:11px;font-weight:500;color:#333">Robert</div><div style="height:4px;background:#9FE1CB;border-radius:2px;margin-top:3px;width:38%"></div></div>
+          <div style="text-align:right"><div style="font-size:11px;font-weight:600;color:#888">0.9 p/hr</div><div style="font-size:9px;color:#888">15 pts</div></div>
+        </div>
+      </div>
+    </div>`
+  },
+  {
+    icon:'⭐',title:'Pitch for Points',
+    body:'Did something great that wasn\'t on your task list? Submit a pitch — describe what you did and how many points you think it\'s worth. Your supervisor reviews and approves it.',
+    tip:'Be specific — the more detail you give, the easier it is for a supervisor to approve.',
+    img:`<div style="margin:.75rem 0">
+      <div style="background:white;border-radius:9px;border:0.5px solid #ddd;padding:.75rem .9rem">
+        <div style="font-size:11px;font-weight:500;color:#333;margin-bottom:.55rem">Submit a pitch</div>
+        <div style="margin-bottom:.4rem"><div style="font-size:9px;color:#888;margin-bottom:3px">What did you do?</div><div style="background:#f7f7f7;border:0.5px solid #ddd;border-radius:6px;padding:.35rem .55rem;font-size:10px;color:#555">Helped student set up accessible workstation</div></div>
+        <div style="margin-bottom:.4rem"><div style="font-size:9px;color:#888;margin-bottom:3px">Detailed explanation</div><div style="background:#f7f7f7;border:0.5px solid #ddd;border-radius:6px;padding:.35rem .55rem;font-size:10px;color:#555;min-height:36px">Spent 20 min helping a student with low vision configure screen magnification and the adjustable desk...</div></div>
+        <div style="margin-bottom:.55rem"><div style="font-size:9px;color:#888;margin-bottom:3px">Points requested</div><div style="background:#f7f7f7;border:0.5px solid #ddd;border-radius:6px;padding:.35rem .55rem;font-size:10px;color:#555;width:60px">15</div></div>
+        <div style="background:#F4A7B9;border-radius:6px;padding:.4rem;text-align:center;font-size:11px;font-weight:600;color:#4B1528">Submit pitch ⭐</div>
+      </div>
+    </div>`
+  },
+  {
+    icon:'💌',title:'Messages',
+    body:'Staff can send you messages directly. You\'ll see a badge on the Messages tab when something new arrives, and a popup when you first log in. Task assignments also show up here.',
+    tip:'You can delete messages just for yourself — it won\'t remove them for anyone else.',
+    img:`<div style="margin:.75rem 0">
+      <div style="background:#F4A7B9;border-radius:9px;padding:.75rem .9rem;margin-bottom:.45rem">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:.45rem"><span style="font-size:16px">💌</span><div style="font-size:12px;font-weight:600;color:#4B1528">New Messages</div></div>
+        <div style="background:white;border-radius:6px;border-left:3px solid #F4A7B9;padding:.4rem .6rem;margin-bottom:.3rem">
+          <div style="font-size:10px;font-weight:500;color:#333">New task assigned to you</div>
+          <div style="font-size:9px;color:#888;margin-top:2px">From: Del · Today 9:14 AM</div>
+        </div>
+        <div style="background:white;border-radius:6px;border-left:3px solid #F4A7B9;padding:.4rem .6rem">
+          <div style="font-size:10px;font-weight:500;color:#333">Reminder: closing shift checklist</div>
+          <div style="font-size:9px;color:#888;margin-top:2px">From: Del · Yesterday</div>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:.55rem">
+          <div style="flex:1;background:rgba(255,255,255,0.45);border-radius:5px;padding:.35rem;text-align:center;font-size:10px;color:#4B1528">Dismiss</div>
+          <div style="flex:2;background:#4B1528;border-radius:5px;padding:.35rem;text-align:center;font-size:10px;color:white;font-weight:500">View Messages →</div>
+        </div>
+      </div>
+    </div>`
+  }
+];
+
+let tutCur=0;
+
+function openTutorial(){
+  tutCur=0;
+  tutRender();
+  const m=$('tutorial-modal');if(m)m.style.display='flex';
+}
+
+function closeTutorial(){
+  const m=$('tutorial-modal');if(m)m.style.display='none';
+  // Mark as seen
+  if(currentUser) localStorage.setItem('tutorial_seen_'+currentUser.id,'1');
+}
+
+function tutGo(dir){
+  if(dir===1&&tutCur<TUT_SLIDES.length-1){tutCur++;tutRender();}
+  else if(dir===-1&&tutCur>0){tutCur--;tutRender();}
+  else if(dir===1&&tutCur===TUT_SLIDES.length-1){closeTutorial();}
+}
+
+function tutRender(){
+  const s=TUT_SLIDES[tutCur];
+  const slide=$('tut-slide');if(!slide)return;
+  slide.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:.7rem">
+      <div style="width:36px;height:36px;background:#FBEAF0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${s.icon}</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text-primary,#333)">${s.title}</div>
+    </div>
+    ${s.img}
+    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary,#666);margin:.5rem 0 .5rem">${s.body}</p>
+    <div style="background:#FFF5F8;border-left:3px solid #F4A7B9;border-radius:0 6px 6px 0;padding:.45rem .7rem">
+      <p style="margin:0;font-size:12px;color:#72243E;line-height:1.5"><b style="color:#4B1528">Tip:</b> ${s.tip}</p>
+    </div>
+  `;
+  const dots=$('tut-dots');if(!dots)return;
+  dots.innerHTML='';
+  TUT_SLIDES.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.style.cssText=`width:${i===tutCur?18:7}px;height:7px;border-radius:4px;background:${i===tutCur?'#F4A7B9':'#ddd'};transition:all .2s`;
+    dots.appendChild(d);
+  });
+  const back=$('tut-back');if(back)back.style.display=tutCur>0?'':'none';
+  const next=$('tut-next');if(next)next.textContent=tutCur===TUT_SLIDES.length-1?'Done ✓':'Next →';
+}
+
+function checkFirstLogin(){
+  if(!currentUser||currentUser.role!=='student') return;
+  const key='tutorial_seen_'+currentUser.id;
+  if(!localStorage.getItem(key)) setTimeout(openTutorial,400);
 }
 
 function checkMotd(){

@@ -1503,7 +1503,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const semester=()=>{const m=new Date().getMonth()+1,y=new Date().getFullYear();return `${y}-${m<=5?'Spring':m<=7?'Summer':'Fall'}`;};
 const $=id=>document.getElementById(id);
 const campusUsers=role=>users.filter(u=>u.campus===activeCampus&&u.role===role&&u.active!=='0'&&u.active!==0);
-const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
+const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus&&t.campus&&!t.is_private);
 const setCampusAccent=c=>document.documentElement.style.setProperty('--campus',CAMPUS_COLORS[c]||'#F4A7B9');
 
 // ── POINTS PER HOUR ────────────────────────────────────────────
@@ -2404,6 +2404,13 @@ function buildTaskRow(task,isAdmin,slotIdx=0,slot=null){
   if(effectiveType==='specific'&&effectiveAssign){const a=document.createElement('span');a.className='task-assign';a.textContent=`→ ${userMap[effectiveAssign]?.name||'?'}`;meta.appendChild(a);}
   if(task.deadline){const dl=document.createElement('span');dl.className=`task-deadline ${overdue?'overdue':'ok'}`;dl.textContent=(overdue?'⚠️ ':'📅 ')+fmtDate(task.deadline);meta.appendChild(dl);}
   if(task.task_type==='collaborative'){const cp=document.createElement('span');cp.className='collab-progress';cp.textContent=soloLocked?'🔒 Solo done':`${occComps.length}/${task.collab_required} done`;meta.appendChild(cp);}
+  // Show creator on admin/staff views only
+  if(currentUser?.role==='admin'||currentUser?.role==='staff'){
+    const creator=users.find(u=>u.id===task.created_by);
+    const name=creator?creator.name:(task.created_by_role==='admin'?'Admin':'Staff');
+    const cb=document.createElement('span');cb.style.cssText='font-size:.72rem;color:var(--faint);background:var(--surface2);border-radius:4px;padding:.1rem .45rem;border:1px solid var(--border)';
+    cb.textContent=`✏️ ${name}`;meta.appendChild(cb);
+  }
   main.appendChild(meta);row.appendChild(main);
  
   const actions=document.createElement('div');actions.className='task-actions';
@@ -2465,6 +2472,11 @@ function buildSlottedCard(task,isAdmin){
   const slotBadge=document.createElement('span');slotBadge.className='badge';slotBadge.style.cssText='background:#EAF8F0;color:#1A6B44;border:1px solid #A0D9BB';slotBadge.textContent=`🗂️ ${parsedSlots(task).length} slots`;titleRow.appendChild(slotBadge);
   header.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;header.appendChild(d);}
+  if(currentUser?.role==='admin'||currentUser?.role==='staff'){
+    const creator=users.find(u=>u.id===task.created_by);
+    const name=creator?creator.name:(task.created_by_role==='admin'?'Admin':'Staff');
+    const cb=document.createElement('div');cb.style.cssText='font-size:.71rem;color:var(--faint);margin-top:.25rem';cb.textContent=`✏️ ${name}`;header.appendChild(cb);
+  }
   if(isAdmin){
     const adminActions=document.createElement('div');adminActions.style.cssText='display:flex;gap:.4rem;margin-top:.5rem';
     const eb=document.createElement('button');eb.className='btn btn-ghost btn-xs';eb.textContent='✏️';eb.onclick=()=>openEditModal(task);adminActions.appendChild(eb);
@@ -2520,6 +2532,12 @@ function buildCollabGroupCard(siblings,isAdmin){
   if(task.points_value>0){const p=document.createElement('span');p.className='task-pts';p.textContent=`+${fmtPts(task.points_value)}pt`;titleRow.appendChild(p);}
   header.appendChild(titleRow);
   if(task.description){const d=document.createElement('div');d.className='task-desc';d.textContent=task.description;header.appendChild(d);}
+  // Show creator on admin/staff views
+  if(currentUser?.role==='admin'||currentUser?.role==='staff'){
+    const creator=users.find(u=>u.id===task.created_by);
+    const name=creator?creator.name:(task.created_by_role==='admin'?'Admin':'Staff');
+    const cb=document.createElement('div');cb.style.cssText='font-size:.71rem;color:var(--faint);margin-top:.25rem';cb.textContent=`✏️ ${name}`;header.appendChild(cb);
+  }
   // Admin controls (edit first sibling, delete all)
   if(isAdmin){
     const adminActions=document.createElement('div');adminActions.style.cssText='display:flex;gap:.4rem;margin-top:.5rem';
@@ -2563,7 +2581,7 @@ function renderAdminHero(){
 
 function renderAdminMyTasks(){
   const list=$('admin-my-tasks');if(!list)return;list.innerHTML='';
-  const mine=tasks.filter(t=>t.campus===activeCampus&&String(t.assign_to)===String(currentUser.id));
+  const mine=tasks.filter(t=>t.campus===activeCampus&&!t.is_private&&String(t.assign_to)===String(currentUser.id));
   const items=mine.map(t=>({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null}));
   const visible=sortTasksForStaff(items.filter(({task,slotIdx,oKey})=>!isTaskHidden(task,slotIdx,oKey,currentUser.id)));
   $('no-admin-mytasks').classList.toggle('hidden',visible.length>0);
@@ -2790,7 +2808,7 @@ function sortTasksForStaff(items){
 function renderStaffTeamTasks(){
   const peerList=$('staff-team-peer-tasks'),stuList=$('staff-delegated-tasks');
   if(!peerList||!stuList)return;peerList.innerHTML='';stuList.innerHTML='';
-  const campusT=tasks.filter(t=>t.campus===activeCampus);
+  const campusT=tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
   const studentIds=new Set(campusUsers('student').map(u=>u.id));
   const peerTasks=campusT.filter(t=>
     t.task_type==='specific'&&t.assign_to&&!studentIds.has(t.assign_to)&&String(t.assign_to)!==String(currentUser.id)
@@ -2919,7 +2937,7 @@ function sortTasks(items){
 
 function myPersonalTasks(){
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus&&t.campus).forEach(t=>{
     const slots=parsedSlots(t);
     if(!slots.length){
       const isPersonal=t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id);
@@ -2941,7 +2959,7 @@ function myPersonalTasks(){
 
 function myTeamTasks(){
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus&&t.campus).forEach(t=>{
     const slots=parsedSlots(t);
     if(!slots.length){
       if(t.task_type!=='everyone'&&t.task_type!=='collaborative') return;
@@ -3362,9 +3380,9 @@ function renderSlotList(containerId,slotsArr,prefix){
  
 // ── SHARED TASK INSERT HELPER ──────────────────────────────────
 async function _insertTask(data){
-  // data: {title,desc,pts,deadline,priority,taskType,assignTo,collabRequired,requestedBy,rec,recDay,recInt,slotConfig,onePer,createdByRole}
+  const campus=activeCampus||data.campus||'SLO'; // never allow empty campus
   await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,requested_by,recurrence,recurrence_interval,recurrence_day,slot_config,one_per_worker_day) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    [uuid(),data.title,data.desc||null,data.pts,data.deadline||null,data.priority,data.taskType,data.assignTo||null,activeCampus,data.collabRequired||2,currentUser.id,data.createdByRole||currentUser.role,data.requestedBy||null,data.rec,data.recInt||null,data.recDay||null,data.slotConfig||null,data.onePer||0]);
+    [uuid(),data.title,data.desc||null,data.pts,data.deadline||null,data.priority,data.taskType,data.assignTo||null,campus,data.collabRequired||2,currentUser.id,data.createdByRole||currentUser.role,data.requestedBy||null,data.rec,data.recInt||null,data.recDay||null,data.slotConfig||null,data.onePer||0]);
 }
 
 async function addTask(){

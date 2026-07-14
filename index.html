@@ -1503,7 +1503,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 const semester=()=>{const m=new Date().getMonth()+1,y=new Date().getFullYear();return `${y}-${m<=5?'Spring':m<=7?'Summer':'Fall'}`;};
 const $=id=>document.getElementById(id);
 const campusUsers=role=>users.filter(u=>u.campus===activeCampus&&u.role===role&&u.active!=='0'&&u.active!==0);
-const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus&&t.campus&&!t.is_private);
+const campusTasks=()=>tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
 const setCampusAccent=c=>document.documentElement.style.setProperty('--campus',CAMPUS_COLORS[c]||'#F4A7B9');
 
 // ── POINTS PER HOUR ────────────────────────────────────────────
@@ -2937,7 +2937,7 @@ function sortTasks(items){
 
 function myPersonalTasks(){
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus&&t.campus).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
     const slots=parsedSlots(t);
     if(!slots.length){
       const isPersonal=t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id);
@@ -2959,7 +2959,7 @@ function myPersonalTasks(){
 
 function myTeamTasks(){
   const result=[];
-  tasks.filter(t=>t.campus===activeCampus&&t.campus).forEach(t=>{
+  tasks.filter(t=>t.campus===activeCampus).forEach(t=>{
     const slots=parsedSlots(t);
     if(!slots.length){
       if(t.task_type!=='everyone'&&t.task_type!=='collaborative') return;

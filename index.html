@@ -166,7 +166,7 @@ textarea.input{resize:vertical;min-height:68px;}
 .suggest-row.best{background:#EAF8F0;border-color:#A0D9BB}
 .suggest-score{font-size:.77rem;color:var(--muted);white-space:nowrap;text-align:right}
 .tasks-col-header{font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.2rem}
-@media(max-width:700px){#student-tasks-grid{grid-template-columns:1fr!important}}
+@media(max-width:700px){#student-tasks-grid,#admin-tasks-grid,#staff-tasks-grid{grid-template-columns:1fr!important}}
 .grouped-card{flex-direction:column;align-items:stretch;gap:0;}
 .slot-sub-list{display:flex;flex-direction:column;gap:0;margin-top:.6rem;border-top:1px solid var(--border);}
 .slot-sub-row{display:flex;align-items:center;gap:.75rem;padding:.55rem .25rem;border-bottom:1px solid var(--border);font-size:.84rem;}
@@ -514,14 +514,34 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <div id="admin-teamtasks" class="hidden">
         <div class="two-col">
           <div>
-            <h2 class="section-title">Team Tasks — <span id="tasks-campus-label" style="color:var(--campus)"></span></h2>
+            <h2 class="section-title">Tasks — <span id="tasks-campus-label" style="color:var(--campus)"></span></h2>
             <div id="help-banner" class="alert-banner warn hidden"><div class="alert-icon">🆘</div><div class="alert-body"><div class="alert-title">Help Requested</div><div id="help-items"></div></div></div>
-            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--pink-dark);margin-bottom:.75rem;margin-top:.25rem">Staff &amp; Admin Tasks</h3>
-            <div class="task-list" id="admin-task-list-peer"></div>
-            <p class="muted hidden" id="no-tasks-admin-peer" style="font-size:.88rem;margin-top:.5rem">No staff/admin tasks yet.</p>
-            <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--muted);margin-bottom:.75rem;margin-top:1.5rem">Student Worker Tasks</h3>
-            <div class="task-list" id="admin-task-list-student"></div>
-            <p class="muted hidden" id="no-tasks-admin-student" style="font-size:.88rem;margin-top:.5rem">No student worker tasks yet.</p>
+            <div id="admin-tasks-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;align-items:start;margin-top:.75rem">
+              <div>
+                <h3 class="tasks-col-header">🔁 Recurring</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">Daily → Weekly → Monthly</p>
+                <div id="admin-col-recurring" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-admin-recurring" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+              <div>
+                <h3 class="tasks-col-header">📢 Open Tasks</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">One-time, open to anyone</p>
+                <div id="admin-col-onetime" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-admin-onetime" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+              <div>
+                <h3 class="tasks-col-header">🤝 Collaborative</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">Shared with specific people</p>
+                <div id="admin-col-collab" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-admin-collab" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+              <div>
+                <h3 class="tasks-col-header">👤 Specific</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">Assigned to one person</p>
+                <div id="admin-col-specific" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-admin-specific" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+            </div>
           </div>
           <div class="sticky-panel">
             <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
@@ -822,15 +842,34 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
       <div id="staff-teamtasks" class="hidden">
         <div class="two-col">
           <div>
-            <h2 class="section-title">Team Tasks</h2>
-            <p class="muted" style="font-size:.84rem;margin-bottom:1rem">Tasks assigned to others — not including you.</p>
+            <h2 class="section-title">Tasks</h2>
             <div id="staff-help-banner" class="alert-banner warn hidden"><div class="alert-icon">🆘</div><div class="alert-body"><div class="alert-title">Help Requested</div><div id="staff-help-items"></div></div></div>
-            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.6rem;margin-top:.25rem">👔 Staff &amp; Admin</h3>
-            <div class="task-list" id="staff-team-peer-tasks"></div>
-            <p class="muted hidden" id="no-staff-team-peer" style="font-size:.88rem;margin-top:.4rem">No staff/admin tasks.</p>
-            <h3 style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--muted);margin-bottom:.6rem;margin-top:1.5rem">🎓 Student Workers</h3>
-            <div class="task-list" id="staff-delegated-tasks"></div>
-            <p class="muted hidden" id="no-staff-delegated" style="font-size:.88rem;margin-top:.4rem">No student worker tasks.</p>
+            <div id="staff-tasks-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;align-items:start;margin-top:.75rem">
+              <div>
+                <h3 class="tasks-col-header">🔁 Recurring</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">Daily → Weekly → Monthly</p>
+                <div id="staff-col-recurring" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-staff-recurring" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+              <div>
+                <h3 class="tasks-col-header">📢 Open Tasks</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">One-time, open to anyone</p>
+                <div id="staff-col-onetime" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-staff-onetime" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+              <div>
+                <h3 class="tasks-col-header">🤝 Collaborative</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">Shared with specific people</p>
+                <div id="staff-col-collab" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-staff-collab" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+              <div>
+                <h3 class="tasks-col-header">👤 Specific</h3>
+                <p class="muted" style="font-size:.73rem;margin-bottom:.5rem">Assigned to one person</p>
+                <div id="staff-col-specific" style="display:flex;flex-direction:column;gap:.5rem"></div>
+                <p class="muted hidden" id="no-staff-specific" style="font-size:.78rem;margin-top:.35rem">None</p>
+              </div>
+            </div>
           </div>
           <div class="sticky-panel">
             <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
@@ -2679,35 +2718,42 @@ function sortTeamTasks(arr){
 }
 
 function renderAdminTeamTasks(){
-  const list_peer=$('admin-task-list-peer');
-  const list_stu=$('admin-task-list-student');
-  if(!list_peer||!list_stu)return;
-  list_peer.innerHTML='';list_stu.innerHTML='';
-  const ct=campusTasks();
+  const colRec=$('admin-col-recurring'),colOne=$('admin-col-onetime'),colCollab=$('admin-col-collab'),colSpec=$('admin-col-specific');
+  if(!colRec)return;
+  colRec.innerHTML='';colOne.innerHTML='';colCollab.innerHTML='';colSpec.innerHTML='';
   const lbl=$('tasks-campus-label');if(lbl)lbl.textContent=CAMPUS_LABELS[activeCampus]||'';
-  const studentIds=new Set(campusUsers('student').map(u=>u.id));
+  const ct=campusTasks();
 
-  const peerTasks=[], stuTasks=[];
-  ct.forEach(t=>{
-    // Everyone / collaborative with no specific assignee → student-facing
-    if(t.task_type==='everyone'||t.task_type==='collaborative'){stuTasks.push(t);return;}
-    // Specific tasks
-    if(t.task_type==='specific'){
-      if(!t.assign_to){stuTasks.push(t);return;} // unassigned, show in student section
-      if(studentIds.has(t.assign_to)){stuTasks.push(t);return;}
-      // Assigned to staff/admin (including current user's own — those are in My Tasks,
-      // but still show in Team Tasks for admin visibility)
-      peerTasks.push(t);
+  // Col 1: Recurring
+  const recurring=ct.filter(t=>(t.task_type==='everyone'||t.task_type==='collaborative')&&t.recurrence&&t.recurrence!=='none'&&!isTeamTaskFullyDone(t))
+    .sort((a,b)=>(REC_ORDER[a.recurrence]||4)-(REC_ORDER[b.recurrence]||4)||(a.points_value||0)-(b.points_value||0));
+  $('no-admin-recurring')?.classList.toggle('hidden',recurring.length>0);
+  recurring.forEach(t=>buildTaskRows(t,true).forEach(r=>colRec.appendChild(r)));
+
+  // Col 2: One-time everyone
+  const onetime=ct.filter(t=>t.task_type==='everyone'&&(t.recurrence==='none'||!t.recurrence)&&!isTeamTaskFullyDone(t))
+    .sort((a,b)=>(a.points_value||0)-(b.points_value||0));
+  $('no-admin-onetime')?.classList.toggle('hidden',onetime.length>0);
+  onetime.forEach(t=>buildTaskRows(t,true).forEach(r=>colOne.appendChild(r)));
+
+  // Col 3: Collaborative
+  const collabTasks=ct.filter(t=>{
+    if(t.task_type==='collaborative') return !isTeamTaskFullyDone(t);
+    if(t.task_type==='specific'&&t.collab_required>1){
+      const siblings=ct.filter(s=>s.title===t.title&&s.created_by===t.created_by&&s.task_type==='specific'&&s.collab_required>1);
+      return siblings.length>1;
     }
+    return false;
   });
+  $('no-admin-collab')?.classList.toggle('hidden',collabTasks.length>0);
+  renderGroupedTaskList(collabTasks,colCollab,true);
 
-  // Sort and filter — done non-recurring tasks drop off, incomplete sorted by points asc
-  const sortedPeer=sortTeamTasks(peerTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  const sortedStu=sortTeamTasks(stuTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  $('no-tasks-admin-peer').classList.toggle('hidden',peerTasks.length>0);
-  $('no-tasks-admin-student').classList.toggle('hidden',stuTasks.length>0);
-  sortedPeer.forEach(t=>buildTaskRows(t,true).forEach(r=>list_peer.appendChild(r)));
-  renderGroupedTaskList(sortedStu,list_stu,true);
+  // Col 4: Specific (single person assignments — not collab siblings)
+  const collabSiblingIds=new Set(ct.filter(t=>t.task_type==='specific'&&t.collab_required>1&&ct.filter(s=>s.title===t.title&&s.created_by===t.created_by&&s.task_type==='specific'&&s.collab_required>1).length>1).map(t=>t.id));
+  const specific=ct.filter(t=>t.task_type==='specific'&&t.assign_to&&!collabSiblingIds.has(t.id)&&!isTeamTaskFullyDone(t))
+    .sort((a,b)=>(a.points_value||0)-(b.points_value||0));
+  $('no-admin-specific')?.classList.toggle('hidden',specific.length>0);
+  specific.forEach(t=>buildTaskRows(t,true).forEach(r=>colSpec.appendChild(r)));
 }
 
 function onAdminRecurrenceChange(){const v=$('at-recurrence').value;$('at-rec-weekly').classList.toggle('hidden',v!=='weekly');$('at-rec-monthly').classList.toggle('hidden',v!=='monthly');$('at-rec-interval').classList.toggle('hidden',v!=='interval');}
@@ -2868,22 +2914,41 @@ function sortTasksForStaff(items){
 }
 
 function renderStaffTeamTasks(){
-  const peerList=$('staff-team-peer-tasks'),stuList=$('staff-delegated-tasks');
-  if(!peerList||!stuList)return;peerList.innerHTML='';stuList.innerHTML='';
-  const campusT=tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
-  const studentIds=new Set(campusUsers('student').map(u=>u.id));
-  const peerTasks=campusT.filter(t=>
-    t.task_type==='specific'&&t.assign_to&&!studentIds.has(t.assign_to)&&String(t.assign_to)!==String(currentUser.id)
-  );
-  const stuTasks=campusT.filter(t=>
-    (t.task_type==='specific'&&t.assign_to&&studentIds.has(t.assign_to))||t.task_type==='collaborative'||t.task_type==='everyone'
-  );
-  const filteredPeer2=sortTeamTasks(peerTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  const filteredStu2=sortTeamTasks(stuTasks.filter(t=>!isTeamTaskFullyDone(t)));
-  $('no-staff-team-peer').classList.toggle('hidden',filteredPeer2.length>0);
-  $('no-staff-delegated').classList.toggle('hidden',filteredStu2.length>0);
-  filteredPeer2.forEach(t=>buildTaskRows(t,true).forEach(r=>peerList.appendChild(r)));
-  renderGroupedTaskList(filteredStu2,stuList,true);
+  const colRec=$('staff-col-recurring'),colOne=$('staff-col-onetime'),colCollab=$('staff-col-collab'),colSpec=$('staff-col-specific');
+  if(!colRec)return;
+  colRec.innerHTML='';colOne.innerHTML='';colCollab.innerHTML='';colSpec.innerHTML='';
+  const ct=tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
+
+  // Col 1: Recurring
+  const recurring=ct.filter(t=>(t.task_type==='everyone'||t.task_type==='collaborative')&&t.recurrence&&t.recurrence!=='none'&&!isTeamTaskFullyDone(t))
+    .sort((a,b)=>(REC_ORDER[a.recurrence]||4)-(REC_ORDER[b.recurrence]||4)||(a.points_value||0)-(b.points_value||0));
+  $('no-staff-recurring')?.classList.toggle('hidden',recurring.length>0);
+  recurring.forEach(t=>buildTaskRows(t,true).forEach(r=>colRec.appendChild(r)));
+
+  // Col 2: One-time everyone
+  const onetime=ct.filter(t=>t.task_type==='everyone'&&(t.recurrence==='none'||!t.recurrence)&&!isTeamTaskFullyDone(t))
+    .sort((a,b)=>(a.points_value||0)-(b.points_value||0));
+  $('no-staff-onetime')?.classList.toggle('hidden',onetime.length>0);
+  onetime.forEach(t=>buildTaskRows(t,true).forEach(r=>colOne.appendChild(r)));
+
+  // Col 3: Collaborative
+  const collabTasks=ct.filter(t=>{
+    if(t.task_type==='collaborative') return !isTeamTaskFullyDone(t);
+    if(t.task_type==='specific'&&t.collab_required>1){
+      const siblings=ct.filter(s=>s.title===t.title&&s.created_by===t.created_by&&s.task_type==='specific'&&s.collab_required>1);
+      return siblings.length>1;
+    }
+    return false;
+  });
+  $('no-staff-collab')?.classList.toggle('hidden',collabTasks.length>0);
+  renderGroupedTaskList(collabTasks,colCollab,true);
+
+  // Col 4: Specific
+  const collabSiblingIds=new Set(ct.filter(t=>t.task_type==='specific'&&t.collab_required>1&&ct.filter(s=>s.title===t.title&&s.created_by===t.created_by&&s.task_type==='specific'&&s.collab_required>1).length>1).map(t=>t.id));
+  const specific=ct.filter(t=>t.task_type==='specific'&&t.assign_to&&!collabSiblingIds.has(t.id)&&!isTeamTaskFullyDone(t))
+    .sort((a,b)=>(a.points_value||0)-(b.points_value||0));
+  $('no-staff-specific')?.classList.toggle('hidden',specific.length>0);
+  specific.forEach(t=>buildTaskRows(t,true).forEach(r=>colSpec.appendChild(r)));
 }
  
 function renderStaffTasks(){

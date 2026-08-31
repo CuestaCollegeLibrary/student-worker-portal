@@ -165,6 +165,8 @@ textarea.input{resize:vertical;min-height:68px;}
 .suggest-row:hover{background:var(--border)}
 .suggest-row.best{background:#EAF8F0;border-color:#A0D9BB}
 .suggest-score{font-size:.77rem;color:var(--muted);white-space:nowrap;text-align:right}
+.tasks-col-header{font-family:'Playfair Display',serif;font-size:.95rem;color:var(--pink-dark);margin-bottom:.2rem}
+@media(max-width:700px){#student-tasks-grid{grid-template-columns:1fr!important}}
 .grouped-card{flex-direction:column;align-items:stretch;gap:0;}
 .slot-sub-list{display:flex;flex-direction:column;gap:0;margin-top:.6rem;border-top:1px solid var(--border);}
 .slot-sub-row{display:flex;align-items:center;gap:.75rem;padding:.55rem .25rem;border-bottom:1px solid var(--border);font-size:.84rem;}
@@ -1031,16 +1033,74 @@ h2.section-title{font-family:'Playfair Display',serif;font-size:1.35rem;margin-b
     <div class="page">
       <div id="student-hero" class="user-hero"></div>
       <div class="tabs" id="student-tabs">
-        <button class="tab active" onclick="studentTab('mytasks')">📋 My Tasks</button>
-        <button class="tab" onclick="studentTab('teamtasks')">📢 Team Tasks</button>
-        <button class="tab" onclick="studentTab('history')">✅ History</button>
+        <button class="tab active" onclick="studentTab('todo')">✅ To Do List</button>
+        <button class="tab" onclick="studentTab('teamtasks')">📋 Tasks</button>
+        <button class="tab" onclick="studentTab('history')">🕐 History</button>
         <button class="tab" onclick="studentTab('leaderboard')">🏆 Leaderboard</button>
         <button class="tab" onclick="studentTab('pitch')">⭐ Pitch for Points</button>
         <button class="tab" onclick="studentTab('messages')">💌 Messages</button>
         <button class="tab" id="student-notif-tab" onclick="studentTab('notifications')">🔔 Notifications</button>
       </div>
-      <div id="s-mytasks"><div class="task-list" id="student-my-task-list"></div><p class="muted hidden" id="no-student-mytasks" style="font-size:.88rem;margin-top:.5rem">No tasks assigned specifically to you.</p></div>
-      <div id="s-teamtasks" class="hidden"><div class="task-list" id="student-team-task-list"></div><p class="muted hidden" id="no-student-teamtasks" style="font-size:.88rem;margin-top:.5rem">No team tasks right now.</p></div>
+
+      <!-- TO DO LIST TAB — student creates their own personal tasks -->
+      <div id="s-todo">
+        <div class="two-col">
+          <div>
+            <h2 class="section-title">My To Do List</h2>
+            <p class="muted" style="font-size:.84rem;margin-bottom:1rem">Your personal task list — only you can see these.</p>
+            <div class="task-list" id="student-todo-list"></div>
+            <p class="muted hidden" id="no-student-todo" style="font-size:.88rem;margin-top:.5rem">No tasks yet. Add one using the form →</p>
+          </div>
+          <div class="sticky-panel">
+            <div class="form-panel" style="max-height:calc(100vh - 100px);overflow-y:auto">
+              <h3>Add a Task</h3>
+              <p style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem">Just for you — won't show up anywhere else.</p>
+              <div class="form-grid">
+                <div class="field"><label>Title *</label><input class="input" id="stu-todo-title" placeholder="What do you need to do?"/></div>
+                <div class="field"><label>Notes (optional)</label><textarea class="input" id="stu-todo-desc" placeholder="Any extra details…" style="min-height:70px"></textarea></div>
+                <div class="field"><label>Priority</label><select class="input" id="stu-todo-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+                <div class="field"><label>Due date (optional)</label><input class="input" id="stu-todo-deadline" type="date"/></div>
+                <button class="btn btn-primary" onclick="studentAddTodo()">Add Task</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TASKS TAB — 4-column grid -->
+      <div id="s-teamtasks" class="hidden">
+        <h2 class="section-title">Tasks</h2>
+        <div id="student-tasks-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;align-items:start">
+          <!-- Col 1: Recurring -->
+          <div>
+            <h3 class="tasks-col-header">🔁 Recurring</h3>
+            <p class="muted" style="font-size:.75rem;margin-bottom:.65rem">Daily → Weekly → Monthly</p>
+            <div id="student-col-recurring" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            <p class="muted hidden" id="no-student-recurring" style="font-size:.8rem;margin-top:.35rem">None right now</p>
+          </div>
+          <!-- Col 2: One-time Everyone -->
+          <div>
+            <h3 class="tasks-col-header">📢 Open Tasks</h3>
+            <p class="muted" style="font-size:.75rem;margin-bottom:.65rem">One-time tasks open to anyone</p>
+            <div id="student-col-onetime" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            <p class="muted hidden" id="no-student-onetime" style="font-size:.8rem;margin-top:.35rem">None right now</p>
+          </div>
+          <!-- Col 3: Collaborative specific -->
+          <div>
+            <h3 class="tasks-col-header">🤝 Collaborative</h3>
+            <p class="muted" style="font-size:.75rem;margin-bottom:.65rem">Shared with specific teammates</p>
+            <div id="student-col-collab" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            <p class="muted hidden" id="no-student-collab" style="font-size:.8rem;margin-top:.35rem">None right now</p>
+          </div>
+          <!-- Col 4: Assigned to me -->
+          <div>
+            <h3 class="tasks-col-header">👤 Assigned to Me</h3>
+            <p class="muted" style="font-size:.75rem;margin-bottom:.65rem">Tasks just for you</p>
+            <div id="student-col-mine" style="display:flex;flex-direction:column;gap:.5rem"></div>
+            <p class="muted hidden" id="no-student-mine" style="font-size:.8rem;margin-top:.35rem">None right now</p>
+          </div>
+        </div>
+      </div>
       <div id="s-history" class="hidden">
         <h2 class="section-title">My History</h2>
         <div id="student-history-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
@@ -1594,11 +1654,13 @@ function staffTab(name){
   if(name==='notifications') renderStaffNotifications();
 }
 function studentTab(name){
-  const tabs=['mytasks','teamtasks','history','leaderboard','pitch','messages','notifications'];
-  tabs.forEach((t,i)=>$(`s-${t}`).classList.toggle('hidden',t!==name));
+  const tabs=['todo','teamtasks','history','leaderboard','pitch','messages','notifications'];
+  tabs.forEach(t=>$(`s-${t}`).classList.toggle('hidden',t!==name));
   $('student-tabs').querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===name));
   if(name==='notifications') renderStudentNotifications();
   if(name==='messages') renderStudentMessages();
+  if(name==='teamtasks') renderStudentTasks();
+  if(name==='todo') renderStudentTodo();
 }
  
 // ══════════════════════════════════════════════════════════════
@@ -2250,7 +2312,7 @@ function renderAll(){
     const staffSchedTab=$('staff-schedule-tab');
     if(staffSchedTab) staffSchedTab.style.display=activeCampus==='SLO'?'':'none';
   } else {
-    renderStudentHero();renderStudentTasks();renderStudentHistory();renderStudentLb();renderStudentPitches();
+    renderStudentHero();renderStudentTasks();renderStudentTodo();renderStudentHistory();renderStudentLb();renderStudentPitches();
   }
 }
  
@@ -2890,7 +2952,7 @@ function renderStudentHero(){
   hero.appendChild(pbox);
   const vis=myVisibleTasks();
   const pend=vis.filter(({task,slotIdx,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey));
-  const tab=$('student-tabs')?.querySelectorAll('.tab')?.[0];if(tab)tab.textContent=`📋 My Tasks (${myPersonalTasks().filter(({task,oKey})=>!completions.some(c=>c.task_id===task.id&&c.user_id===currentUser.id&&c.occurrence_key===oKey)).length})`;
+  const tab=$('student-tabs')?.querySelectorAll('.tab')?.[0];if(tab)tab.textContent=`✅ To Do List`;
 }
  
 // ── TASK DONE VISIBILITY ───────────────────────────────────────
@@ -2981,31 +3043,77 @@ function myVisibleTasks(){
   return [...myPersonalTasks(),...myTeamTasks()];
 }
  
+// ── STUDENT TO DO LIST ─────────────────────────────────────────
+function renderStudentTodo(){
+  const list=$('student-todo-list');if(!list)return;list.innerHTML='';
+  const mine=tasks.filter(t=>t.campus===activeCampus&&t.is_private&&String(t.created_by)===String(currentUser?.id));
+  const items=mine.map(t=>({task:t,slotIdx:0,oKey:occurrenceKey(t,0),slot:null}));
+  const visible=sortTasksForStaff(items.filter(({task,slotIdx,oKey})=>!isTaskHidden(task,slotIdx,oKey,currentUser.id)));
+  $('no-student-todo')?.classList.toggle('hidden',visible.length>0);
+  visible.forEach(({task})=>buildTaskRows(task,true).forEach(r=>list.appendChild(r)));
+}
+
+async function studentAddTodo(){
+  const title=($('stu-todo-title').value||'').trim();if(!title)return alert('Please enter a task title.');
+  setSyncing(true);
+  try{
+    await tursoFetch('INSERT INTO tasks(id,title,description,points_value,deadline,priority,task_type,assign_to,campus,collab_required,created_by,created_by_role,recurrence,one_per_worker_day,is_private) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [uuid(),title,($('stu-todo-desc').value||'').trim()||null,0,$('stu-todo-deadline').value||null,$('stu-todo-priority').value,'specific',currentUser.id,activeCampus,2,currentUser.id,'student','none',0,1]);
+    $('stu-todo-title').value='';$('stu-todo-desc').value='';$('stu-todo-priority').value='medium';$('stu-todo-deadline').value='';
+    await loadData();renderStudentTodo();
+  }catch(e){alert('Error: '+e.message);}setSyncing(false);
+}
+
+// ── STUDENT TASKS 4-COLUMN GRID ────────────────────────────────
+const REC_ORDER={'daily':0,'weekly':1,'monthly':2,'interval':3,'none':4};
+
 function renderStudentTasks(){
-  // My Tasks — specifically assigned
-  const myList=$('student-my-task-list');
-  if(myList){
-    myList.innerHTML='';
-    const personal=myPersonalTasks();
-    const noMyEl=$('no-student-mytasks');
-    if(noMyEl){
-      noMyEl.classList.toggle('hidden',personal.length>0);
-      noMyEl.textContent=personal.length===0?'🎉 All done! Check back later.':'';
+  const colRec=$('student-col-recurring');
+  const colOne=$('student-col-onetime');
+  const colCollab=$('student-col-collab');
+  const colMine=$('student-col-mine');
+  if(!colRec||!colOne||!colCollab||!colMine)return;
+  colRec.innerHTML='';colOne.innerHTML='';colCollab.innerHTML='';colMine.innerHTML='';
+
+  const campusT=tasks.filter(t=>t.campus===activeCampus&&!t.is_private);
+
+  // Column 1: Recurring — everyone/collaborative tasks with recurrence set
+  const recurring=campusT
+    .filter(t=>(t.task_type==='everyone'||t.task_type==='collaborative')&&t.recurrence&&t.recurrence!=='none')
+    .filter(t=>!isTaskHidden(t,0,occurrenceKey(t,0),currentUser.id))
+    .sort((a,b)=>(REC_ORDER[a.recurrence]||4)-(REC_ORDER[b.recurrence]||4)||(a.points_value||0)-(b.points_value||0));
+  $('no-student-recurring')?.classList.toggle('hidden',recurring.length>0);
+  recurring.forEach(t=>buildTaskRows(t,false).forEach(r=>colRec.appendChild(r)));
+
+  // Column 2: One-time open tasks — everyone, non-recurring, no specific assignee
+  const onetime=campusT
+    .filter(t=>t.task_type==='everyone'&&(t.recurrence==='none'||!t.recurrence))
+    .filter(t=>!isTaskHidden(t,0,occurrenceKey(t,0),currentUser.id))
+    .sort((a,b)=>(a.points_value||0)-(b.points_value||0));
+  $('no-student-onetime')?.classList.toggle('hidden',onetime.length>0);
+  onetime.forEach(t=>buildTaskRows(t,false).forEach(r=>colOne.appendChild(r)));
+
+  // Column 3: Collaborative — open collab tasks OR collab-specific siblings
+  const rendered=new Set();
+  const collabTasks=campusT.filter(t=>{
+    if(t.task_type==='collaborative') return true;
+    // collab-specific siblings: same title+creator+campus, collab_required>1
+    if(t.task_type==='specific'&&t.collab_required>1){
+      const siblings=campusT.filter(s=>s.title===t.title&&s.created_by===t.created_by&&s.task_type==='specific'&&s.collab_required>1);
+      return siblings.length>1;
     }
-    personal.forEach(({task,slotIdx,slot})=>myList.appendChild(buildTaskRow(task,false,slotIdx,slot)));
-  }
-  // Team Tasks — everyone/collaborative
-  const teamList=$('student-team-task-list');
-  if(teamList){
-    teamList.innerHTML='';
-    const team=myTeamTasks();
-    const noTeamEl=$('no-student-teamtasks');
-    if(noTeamEl){
-      noTeamEl.classList.toggle('hidden',team.length>0);
-      noTeamEl.textContent=team.length===0?'🎉 No open team tasks right now.':'';
-    }
-    team.forEach(({task,slotIdx,slot})=>teamList.appendChild(buildTaskRow(task,false,slotIdx,slot)));
-  }
+    return false;
+  });
+  $('no-student-collab')?.classList.toggle('hidden',collabTasks.length>0);
+  renderGroupedTaskList(collabTasks,colCollab,false);
+
+  // Column 4: Assigned to me
+  const mine=campusT
+    .filter(t=>t.task_type==='specific'&&String(t.assign_to)===String(currentUser?.id))
+    .filter(t=>!isTaskHidden(t,0,occurrenceKey(t,0),currentUser.id))
+    .sort((a,b)=>(a.points_value||0)-(b.points_value||0));
+  $('no-student-mine')?.classList.toggle('hidden',mine.length>0);
+  mine.forEach(t=>buildTaskRows(t,false).forEach(r=>colMine.appendChild(r)));
 }
  
 function renderStudentHistory(){
